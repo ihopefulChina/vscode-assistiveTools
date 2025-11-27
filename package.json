@@ -9,6 +9,7 @@
     "url": "https://github.com/your-username/vscode-assistiveTools.git"
   },
   "license": "MIT",
+  "icon": "./static/logo.png",
   "keywords": [
     "enum",
     "typescript",
