@@ -3,7 +3,7 @@
   "displayName": "Assistive Tools",
   "description": "VSCode辅助工具插件，提供枚举悬停转换等功能",
   "version": "0.0.1",
-  "publisher": "6ad6d10d-b9b4-660b-a6a5-cc69ffa0b80d",
+  "publisher": "ihopeful",
   "repository": {
     "type": "git",
     "url": "https://github.com/your-username/vscode-assistiveTools.git"
@@ -40,9 +40,7 @@
   "scripts": {
     "vscode:prepublish": "npm run compile",
     "compile": "tsc -p ./",
-    "watch": "tsc -watch -p ./",
-    "package": "vsce package",
-    "publish": "vsce publish"
+    "watch": "tsc -watch -p ./"
   },
   "devDependencies": {
     "@types/node": "^18.0.0",

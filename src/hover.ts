@@ -1,6 +1,9 @@
 import * as vscode from "vscode";
 import * as path from "path";
-import * as ts from "typescript";
+import * as fs from "fs";
+import type * as TypeScript from "typescript";
+
+const ts: typeof TypeScript = loadTypescriptModule();
 
 type Argument = {
   /** 文件路径 */
@@ -175,7 +178,7 @@ function parseEnumObjects(
   }
 
   // 遍历 AST，查找枚举对象
-  ts.forEachChild(sourceFile, (node: ts.Node) => {
+  ts.forEachChild(sourceFile, (node: TypeScript.Node) => {
     // 查询对应枚举 并生成数据
     if (ts.isEnumDeclaration(node)) {
       // 在这里可以处理枚举对象
@@ -189,9 +192,9 @@ function parseEnumObjects(
       enumObj.endLine = endLine + 2;
 
       // 遍历枚举成员
-      node.members.forEach((member: ts.EnumMember) => {
+      node.members.forEach((member: TypeScript.EnumMember) => {
         if (ts.isEnumMember(member)) {
-          const memberName = (member.name as ts.Identifier).text;
+          const memberName = (member.name as TypeScript.Identifier).text;
           // 获取枚举项的注释
           const comments = (ts as any).getJSDocCommentsAndTags(
             member,
@@ -230,4 +233,96 @@ function showAutoClosingInformationMessage(
       });
     }
   );
+}
+
+function loadTypescriptModule(): typeof TypeScript {
+  const tryRequire = (modulePath: string) => {
+    try {
+      if (modulePath === "typescript" || fs.existsSync(modulePath)) {
+        // eslint-disable-next-line @typescript-eslint/no-var-requires
+        return require(modulePath);
+      }
+    } catch {
+      // ignore
+    }
+    return undefined;
+  };
+
+  const direct = tryRequire("typescript");
+  if (direct) {
+    return direct;
+  }
+
+  const candidates: string[] = [];
+  const builtin = vscode.extensions.getExtension(
+    "vscode.typescript-language-features"
+  );
+  if (builtin) {
+    candidates.push(
+      path.join(
+        builtin.extensionPath,
+        "node_modules",
+        "typescript",
+        "lib",
+        "typescript.js"
+      )
+    );
+    candidates.push(
+      path.join(
+        builtin.extensionPath,
+        "node_modules",
+        "typescript",
+        "typescript.js"
+      )
+    );
+  }
+
+  const appRoot = (vscode.env as any)?.appRoot ?? "";
+  if (appRoot) {
+    candidates.push(
+      path.join(
+        appRoot,
+        "extensions",
+        "node_modules",
+        "typescript",
+        "lib",
+        "typescript.js"
+      )
+    );
+    candidates.push(
+      path.join(
+        appRoot,
+        "extensions",
+        "typescript-language-features",
+        "node_modules",
+        "typescript",
+        "lib",
+        "typescript.js"
+      )
+    );
+    candidates.push(
+      path.join(
+        appRoot,
+        "resources",
+        "app",
+        "extensions",
+        "node_modules",
+        "typescript",
+        "lib",
+        "typescript.js"
+      )
+    );
+  }
+
+  for (const candidate of candidates) {
+    const loaded = tryRequire(candidate);
+    if (loaded) {
+      return loaded;
+    }
+  }
+
+  const message =
+    "无法加载 TypeScript 模块，枚举转换功能不可用。请确认插件依赖已安装，或 VSCode 的 TypeScript 扩展处于启用状态。";
+  vscode.window.showErrorMessage(message);
+  throw new Error(message);
 }
