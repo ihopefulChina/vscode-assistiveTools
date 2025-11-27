@@ -2,11 +2,11 @@
   "name": "vscode-assistive-tools",
   "displayName": "Assistive Tools",
   "description": "VSCode辅助工具插件，提供枚举悬停转换等功能",
-  "version": "0.0.1",
+  "version": "0.0.2",
   "publisher": "ihopefulChina",
   "repository": {
     "type": "git",
-    "url": "https://github.com/your-username/vscode-assistiveTools.git"
+    "url": "https://github.com/ihopefulChina/vscode-assistiveTools.git"
   },
   "license": "MIT",
   "icon": "./static/logo.png",
