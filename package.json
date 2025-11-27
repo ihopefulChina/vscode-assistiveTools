@@ -1,0 +1,55 @@
+{
+  "name": "vscode-assistive-tools",
+  "displayName": "Assistive Tools",
+  "description": "VSCode辅助工具插件，提供枚举悬停转换等功能",
+  "version": "0.0.1",
+  "publisher": "6ad6d10d-b9b4-660b-a6a5-cc69ffa0b80d",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/your-username/vscode-assistiveTools.git"
+  },
+  "license": "MIT",
+  "keywords": [
+    "enum",
+    "typescript",
+    "javascript",
+    "code-generation",
+    "assistive"
+  ],
+  "engines": {
+    "vscode": "^1.74.0"
+  },
+  "categories": [
+    "Other"
+  ],
+  "activationEvents": [
+    "onLanguage:typescript",
+    "onLanguage:typescriptreact",
+    "onLanguage:javascript",
+    "onLanguage:javascriptreact"
+  ],
+  "main": "./out/extension.js",
+  "contributes": {
+    "commands": [
+      {
+        "command": "assistiveTools.convertEnum",
+        "title": "转换枚举"
+      }
+    ]
+  },
+  "scripts": {
+    "vscode:prepublish": "npm run compile",
+    "compile": "tsc -p ./",
+    "watch": "tsc -watch -p ./",
+    "package": "vsce package",
+    "publish": "vsce publish"
+  },
+  "devDependencies": {
+    "@types/node": "^18.0.0",
+    "@types/vscode": "^1.74.0",
+    "typescript": "^4.9.4"
+  },
+  "dependencies": {
+    "typescript": "^4.9.4"
+  }
+}
