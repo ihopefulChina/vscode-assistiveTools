@@ -1,21 +1,21 @@
-import * as vscode from "vscode";
-import registerEnumHover from "./hover";
-import registerYapiInterfaceGenerator from "./yapi";
+import * as vscode from "vscode"
+import registerEnumHover from "./hover"
+import registerYapiInterfaceGenerator from "./yapi"
 
 /**
  * 插件激活时调用
  */
 export function activate(context: vscode.ExtensionContext) {
-  console.log("Assistive Tools 插件已激活");
+  console.log("Assistive Tools 插件已激活")
 
   // 注册枚举悬停转换功能
-  registerEnumHover(context);
-  registerYapiInterfaceGenerator(context);
+  registerEnumHover(context)
+  registerYapiInterfaceGenerator(context)
 }
 
 /**
  * 插件停用时调用
  */
 export function deactivate() {
-  console.log("Assistive Tools 插件已停用");
+  console.log("Assistive Tools 插件已停用")
 }

@@ -30,13 +30,13 @@ export const MStatus = {
   [EStatus.Pending]: "待处理",
   [EStatus.Completed]: "已完成",
   [EStatus.Cancelled]: "已取消",
-};
+}
 
 export const OStatus = [
   { value: EStatus.Pending, label: "待处理" },
   { value: EStatus.Completed, label: "已完成" },
   { value: EStatus.Cancelled, label: "已取消" },
-];
+]
 ```
 
 ## 🔧 如果遇到问题
