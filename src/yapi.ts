@@ -245,7 +245,7 @@ function buildQueryInterface(
     if (item.desc) {
       lines.push(`  /** ${item.desc} */`)
     }
-    lines.push(`  ${propName}${optional}: string;`)
+    lines.push(`  ${propName}${optional}: string`)
   })
   lines.push("}")
   return lines.join("\n")
@@ -351,7 +351,7 @@ function assembleInterfacesFromSchema(schema: JsonSchema, name: string): string 
       const required = new Set(current.schema.required ?? [])
       const entries = Object.entries(current.schema.properties)
       if (entries.length === 0) {
-        lines.push("  [key: string]: any;")
+        lines.push("  [key: string]: any")
       } else {
         entries.forEach(([key, value]) => {
           const propName = formatPropertyName(key)
@@ -366,14 +366,14 @@ function assembleInterfacesFromSchema(schema: JsonSchema, name: string): string 
           if (value.description) {
             lines.push(`  /** ${value.description} */`)
           }
-          lines.push(`  ${propName}${optional}: ${typeName};`)
+          lines.push(`  ${propName}${optional}: ${typeName}`)
         })
       }
       lines.push("}")
       blocks.push(lines.join("\n"))
     } else {
       const simpleType = mapPrimitiveType(current.schema)
-      blocks.push(`type ${interfaceName} = ${simpleType};`)
+      blocks.push(`type ${interfaceName} = ${simpleType}`)
     }
 
     emitted.add(interfaceName)
