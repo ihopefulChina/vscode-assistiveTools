@@ -74,7 +74,7 @@ export default function registerYapiInterfaceGenerator(
 
         const urlInput = await vscode.window.showInputBox({
           placeHolder:
-            "例如：https://doc.soulapp-inc.cn/project/25/interface/api/80173",
+            "例如：https://yapi.example.com/project/25/interface/api/80173",
           prompt: "请输入 YAPI 接口文档地址",
           validateInput(value) {
             return value.trim() ? undefined : "地址不能为空";

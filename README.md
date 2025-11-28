@@ -1,6 +1,6 @@
 # VSCode Assistive Tools
 
-VSCode 辅助工具插件，提供枚举悬停转换等功能。
+VSCode 辅助工具插件，提供枚举悬停转换、YAPI 接口类型生成等功能。
 
 ## 功能
 

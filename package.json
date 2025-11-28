@@ -1,15 +1,23 @@
 {
   "name": "vscode-assistive-tools",
   "displayName": "Assistive Tools",
-  "description": "VSCode辅助工具插件，提供枚举悬停转换等功能",
-  "version": "0.0.3",
+  "description": "VSCode辅助工具插件，提供枚举悬停转换和YAPI接口类型生成等功能。支持TypeScript/JavaScript枚举值到Map对象和Option数组的自动转换，以及从YAPI接口文档自动生成TypeScript类型定义。",
+  "version": "0.0.4",
   "publisher": "ihopefulChina",
   "repository": {
     "type": "git",
     "url": "https://github.com/ihopefulChina/vscode-assistiveTools.git"
   },
+  "homepage": "https://github.com/ihopefulChina/vscode-assistiveTools#readme",
+  "bugs": {
+    "url": "https://github.com/ihopefulChina/vscode-assistiveTools/issues"
+  },
   "license": "MIT",
   "icon": "./static/logo.png",
+  "galleryBanner": {
+    "color": "#007ACC",
+    "theme": "dark"
+  },
   "keywords": [
     "enum",
     "typescript",
@@ -21,7 +29,9 @@
     "vscode": "^1.74.0"
   },
   "categories": [
-    "Other"
+    "Other",
+    "Snippets",
+    "Formatters"
   ],
   "activationEvents": [
     "onLanguage:typescript",
