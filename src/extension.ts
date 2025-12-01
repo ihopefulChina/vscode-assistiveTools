@@ -1,6 +1,5 @@
 import * as vscode from "vscode"
 import registerEnumHover from "./hover"
-import registerYapiInterfaceGenerator from "./yapi"
 
 /**
  * 插件激活时调用
@@ -10,7 +9,6 @@ export function activate(context: vscode.ExtensionContext) {
 
   // 注册枚举悬停转换功能
   registerEnumHover(context)
-  registerYapiInterfaceGenerator(context)
 }
 
 /**

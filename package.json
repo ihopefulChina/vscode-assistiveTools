@@ -46,22 +46,8 @@
       {
         "command": "assistiveTools.convertEnum",
         "title": "转换枚举"
-      },
-      {
-        "command": "assistiveTools.generateYapiInterface",
-        "title": "Assistive: 生成 YAPI 请求/响应 Interface"
       }
-    ],
-    "configuration": {
-      "title": "Assistive Tools",
-      "properties": {
-        "assistiveTools.yapiToken": {
-          "type": "string",
-          "default": "",
-          "markdownDescription": "YAPI 的 `_yapi_token` 值，用于在命令中拉取接口详情并生成请求/响应 interface。"
-        }
-      }
-    }
+    ]
   },
   "scripts": {
     "vscode:prepublish": "npm run compile",
@@ -69,13 +55,11 @@
     "watch": "tsc -watch -p ./"
   },
   "devDependencies": {
-    "@types/node-fetch": "^2.6.11",
     "@types/node": "^18.0.0",
     "@types/vscode": "^1.74.0",
     "typescript": "^4.9.4"
   },
   "dependencies": {
-    "node-fetch": "^2.7.0",
     "typescript": "^4.9.4"
   }
 }

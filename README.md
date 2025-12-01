@@ -42,14 +42,6 @@ export const OStatus = [
 ]
 ```
 
-### YAPI 接口类型生成
-
-在命令面板中执行 `Assistive: 生成 YAPI 请求/响应 Interface`，插件会读取 YAPI 接口详情并生成请求 query、body 以及响应的 TypeScript interface。
-
-1. 先在 VS Code 设置中填写 `Assistive Tools › Yapi Token`（对应 `_yapi_token`）。
-2. 触发命令后输入形如 `https://doc.xxx.com/project/25/interface/api/80173` 的接口地址。
-3. 插件会自动在当前编辑器光标位置插入生成的 interface，包含请求参数、请求体以及响应体等，并使用 JSDoc 注释描述字段含义。
-
 ## 开发
 
 ### 安装依赖
