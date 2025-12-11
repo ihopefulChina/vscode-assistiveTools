@@ -1,5 +1,5 @@
 import * as vscode from "vscode"
-import registerEnumHover from "./commands/hover"
+import registerEnumHover from "./commands/enum-hover"
 import registerCreateComponents from "./commands/create-components"
 
 /**
