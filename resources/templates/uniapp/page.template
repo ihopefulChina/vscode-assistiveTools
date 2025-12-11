@@ -1,0 +1,16 @@
+<template>
+  <view class="${kebabName}">
+    <!-- ${pascalName} 页面 -->
+  </view>
+</template>
+
+<script setup lang="ts">
+// ${pascalName} 页面
+</script>
+
+<style lang="scss" scoped>
+.${kebabName} {
+  // 页面样式
+}
+</style>
+

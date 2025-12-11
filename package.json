@@ -1,8 +1,8 @@
 {
   "name": "vscode-assistive-tools",
   "displayName": "Assistive Tools",
-  "description": "VSCode辅助工具插件，提供枚举悬停转换和YAPI接口类型生成等功能。支持TypeScript/JavaScript枚举值到Map对象和Option数组的自动转换，以及从YAPI接口文档自动生成TypeScript类型定义。",
-  "version": "0.0.4",
+  "description": "VSCode辅助工具插件，提供枚举悬停转换等功能。支持TypeScript/JavaScript枚举值到Map对象和Option数组的自动转换。",
+  "version": "0.0.5",
   "publisher": "ihopefulChina",
   "repository": {
     "type": "git",
@@ -38,7 +38,9 @@
     "onLanguage:typescriptreact",
     "onLanguage:javascript",
     "onLanguage:javascriptreact",
-    "onCommand:assistiveTools.generateYapiInterface"
+    "onCommand:assistiveTools.generateYapiInterface",
+    "onCommand:assistiveTools.createComponent",
+    "onCommand:assistiveTools.createPage"
   ],
   "main": "./out/extension.js",
   "contributes": {
@@ -46,8 +48,30 @@
       {
         "command": "assistiveTools.convertEnum",
         "title": "转换枚举"
+      },
+      {
+        "command": "assistiveTools.createComponent",
+        "title": "创建组件",
+        "icon": "$(file-code)"
+      },
+      {
+        "command": "assistiveTools.createPage",
+        "title": "创建页面",
+        "icon": "$(file-code)"
       }
-    ]
+    ],
+    "menus": {
+      "explorer/context": [
+        {
+          "command": "assistiveTools.createComponent",
+          "group": "navigation"
+        },
+        {
+          "command": "assistiveTools.createPage",
+          "group": "navigation"
+        }
+      ]
+    }
   },
   "scripts": {
     "vscode:prepublish": "npm run compile",
@@ -55,11 +79,13 @@
     "watch": "tsc -watch -p ./"
   },
   "devDependencies": {
+    "@types/js-yaml": "^4.0.9",
     "@types/node": "^18.0.0",
     "@types/vscode": "^1.74.0",
     "typescript": "^4.9.4"
   },
   "dependencies": {
+    "js-yaml": "^4.1.1",
     "typescript": "^4.9.4"
   }
 }

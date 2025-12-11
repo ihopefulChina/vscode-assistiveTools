@@ -1,0 +1,24 @@
+<template>
+  <div class="${kebabName}">
+    <!-- ${pascalName} 组件 -->
+  </div>
+</template>
+
+<script lang="ts">
+import { defineComponent } from '@vue/composition-api'
+
+export default defineComponent({
+  name: '${pascalName}',
+  setup() {
+    // 组件逻辑
+    return {}
+  }
+})
+</script>
+
+<style lang="scss" scoped>
+.${kebabName} {
+  // 组件样式
+}
+</style>
+

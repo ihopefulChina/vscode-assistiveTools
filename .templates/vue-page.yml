@@ -1,0 +1,47 @@
+# .templates/vue-page.yml
+
+# 模板名称
+name: "vue-page"
+# 详细描述
+description: "Vue2 + TypeScript + Composition API 页面模板"
+# 标签
+tags: ["vue2", "typescript", "composition-api"]
+# 是否覆盖创建组件/页面
+override: ["vue-page"]
+# 模板内容
+tpl:
+  index.vue: |
+    <template>
+      <PageContainer>
+        <div class="[:=PascalName:]"></div>
+      </PageContainer>
+    </template>
+
+    <script lang="ts">
+    import { defineComponent } from "@vue/composition-api"
+    import { useState } from "@/hooks/useState"
+    import { useRouterParams } from "@/hooks/useRouterParams"
+    import PageContainer from "@/layout/pageContainer/index.vue"
+    import { RouteParams } from "@/router/RouteParams"
+
+    export default defineComponent({
+      name: "[:=PascalName:]",
+      components: { PageContainer },
+      setup() {
+        /** 路由参数 */
+        const { id } = useRouterParams<RouteParams["[:=PascalName:]"]>()
+        
+        /** 状态管理 */
+        const [state, setState] = useState()
+
+        return {
+          state
+        }
+      },
+    })
+    </script>
+
+    <style lang="scss" scoped src="./index.scss"></style>
+  index.scss: |
+    .[:=PascalName:] {
+    }
