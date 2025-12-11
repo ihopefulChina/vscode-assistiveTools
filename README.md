@@ -2,6 +2,12 @@
 
 VSCode 辅助工具插件，提供枚举悬停转换和快速创建组件/页面等功能。
 
+## 插件地址
+
+[marketplace](https://marketplace.visualstudio.com/items?itemName=ihopefulChina.vscode-assistive-tools)
+
+[open VSX](https://open-vsx.org/extension/ihopefulChina/vscode-assistive-tools)
+
 ## 功能
 
 ### 1. 枚举悬停转换
