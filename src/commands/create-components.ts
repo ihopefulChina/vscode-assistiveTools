@@ -149,8 +149,16 @@ function readYamlTemplate(templatePath: string): YamlTemplate {
   try {
     const content = fs.readFileSync(templatePath, "utf-8")
     const template = yaml.load(content) as YamlTemplate
-    if (!template || !template.tpl) {
+    if (
+      !template ||
+      !template.tpl ||
+      typeof template.tpl !== "object" ||
+      Array.isArray(template.tpl)
+    ) {
       throw new Error("YAML 模板格式错误：缺少 tpl 字段")
+    }
+    if (template.type && !["component", "page", "both"].includes(template.type)) {
+      throw new Error("YAML 模板格式错误：type 只能是 component、page 或 both")
     }
     return template
   } catch (error: any) {
@@ -205,17 +213,29 @@ export function discoverCustomTemplates(workspaceRoot: string): CustomTemplateIn
         }
       }
 
-      const template = readYamlTemplate(absolutePath)
-      return {
-        name: template.name?.trim() || path.basename(entry.name, path.extname(entry.name)),
-        description: template.description?.trim() || "YAML 多文件模板",
-        tags: Array.isArray(template.tags)
-          ? template.tags.filter((tag): tag is string => typeof tag === "string")
-          : [],
-        type: inferTemplateType(entry.name, template.type),
-        relativePath,
-        absolutePath,
-        format: "yaml",
+      try {
+        const template = readYamlTemplate(absolutePath)
+        return {
+          name: template.name?.trim() || path.basename(entry.name, path.extname(entry.name)),
+          description: template.description?.trim() || "YAML 多文件模板",
+          tags: Array.isArray(template.tags)
+            ? template.tags.filter((tag): tag is string => typeof tag === "string")
+            : [],
+          type: inferTemplateType(entry.name, template.type),
+          relativePath,
+          absolutePath,
+          format: "yaml",
+        }
+      } catch (error: any) {
+        return {
+          name: path.basename(entry.name, path.extname(entry.name)),
+          description: `模板格式错误：${error.message}`,
+          tags: ["invalid"],
+          type: inferTemplateType(entry.name),
+          relativePath,
+          absolutePath,
+          format: "yaml",
+        }
       }
     })
     .sort((left, right) => left.name.localeCompare(right.name, "zh-CN"))
@@ -464,8 +484,21 @@ export function resolveTemplateOutputPath(folderPath: string, fileName: string):
 }
 
 function validateTemplateRelativePath(fileName: string): void {
-  if (!fileName.trim() || path.isAbsolute(fileName) || fileName.includes("\0")) {
+  const portablePath = fileName.replace(/\\/g, "/")
+  const normalized = path.posix.normalize(portablePath)
+  if (
+    !fileName.trim() ||
+    path.isAbsolute(fileName) ||
+    path.win32.isAbsolute(fileName) ||
+    fileName.includes("\0")
+  ) {
     throw new Error(`模板文件路径无效: ${fileName}`)
+  }
+  if (normalized === "." || portablePath.endsWith("/")) {
+    throw new Error(`模板文件路径无效: ${fileName}`)
+  }
+  if (normalized === ".." || normalized.startsWith("../")) {
+    throw new Error(`模板文件只能创建在目标文件夹内: ${fileName}`)
   }
 }
 
@@ -849,6 +882,115 @@ export function getWorkspaceRoot(targetDir: string): string {
   )
 }
 
+async function pickWorkspaceRoot(uri?: vscode.Uri): Promise<string | undefined> {
+  if (uri?.fsPath) {
+    const target = fs.existsSync(uri.fsPath) && fs.statSync(uri.fsPath).isDirectory()
+      ? uri.fsPath
+      : path.dirname(uri.fsPath)
+    return getWorkspaceRoot(target)
+  }
+  const folders = vscode.workspace.workspaceFolders || []
+  if (folders.length === 0) {
+    vscode.window.showWarningMessage("请先打开一个工作区")
+    return undefined
+  }
+  if (folders.length === 1) {
+    return folders[0].uri.fsPath
+  }
+  return (await vscode.window.showWorkspaceFolderPick({ placeHolder: "选择模板所属工作区" }))
+    ?.uri.fsPath
+}
+
+async function exportBuiltInTemplates(uri?: vscode.Uri): Promise<void> {
+  const workspaceRoot = await pickWorkspaceRoot(uri)
+  if (!workspaceRoot) {
+    return
+  }
+
+  const selected = await vscode.window.showQuickPick(
+    [
+      { label: "Vue 2", type: "vue2" as const },
+      { label: "Vue 3", type: "vue3" as const },
+      { label: "UniApp", type: "uniapp" as const },
+      { label: "Taro", type: "taro" as const },
+    ],
+    { placeHolder: "选择要导出的内置模板" }
+  )
+  if (!selected) {
+    return
+  }
+
+  const templatesDir = path.join(workspaceRoot, ".templates")
+  const outputFiles = (["component", "page"] as const).map((type) => {
+    const source = getDefaultTemplatePath(selected.type, type)
+    const extension = getFileExtension(selected.type)
+    const target = path.join(templatesDir, `${selected.type}-${type}.yml`)
+    const data: YamlTemplate = {
+      name: `${selected.label} ${type === "component" ? "组件" : "页面"}`,
+      description: `从 Assistive Tools 内置 ${selected.label} 模板导出`,
+      tags: [selected.type, type],
+      type,
+      tpl: {
+        [`index${extension}`]: fs.readFileSync(source, "utf-8"),
+      },
+    }
+    return {
+      target,
+      content: yaml.dump(data, { noRefs: true, lineWidth: -1 }),
+      exists: fs.existsSync(target),
+    }
+  })
+
+  const conflicts = outputFiles.filter((file) => file.exists)
+  const action = conflicts.length > 0 ? "覆盖并导出" : "导出"
+  const confirmed = await vscode.window.showInformationMessage(
+    `将 ${selected.label} 组件和页面模板导出到 .templates`,
+    {
+      modal: true,
+      detail: outputFiles
+        .map((file) => `${file.exists ? "将覆盖" : "将创建"}  ${path.basename(file.target)}`)
+        .join("\n"),
+    },
+    action
+  )
+  if (confirmed !== action) {
+    return
+  }
+
+  fs.mkdirSync(templatesDir, { recursive: true })
+  for (const file of outputFiles) {
+    fs.writeFileSync(file.target, file.content, "utf-8")
+  }
+  vscode.window.showInformationMessage(`已导出 ${selected.label} 模板到 .templates`)
+}
+
+async function validateTemplatesCommand(uri?: vscode.Uri): Promise<void> {
+  const workspaceRoot = await pickWorkspaceRoot(uri)
+  if (!workspaceRoot) {
+    return
+  }
+  let count = 0
+  try {
+    count = discoverCustomTemplates(workspaceRoot).length
+  } catch (error: any) {
+    vscode.window.showErrorMessage(`模板校验失败: ${error.message}`)
+    return
+  }
+  if (count === 0) {
+    vscode.window.showInformationMessage("当前工作区没有找到 .templates 模板")
+    return
+  }
+  const errors = validateCustomTemplates(workspaceRoot)
+  if (errors.length === 0) {
+    vscode.window.showInformationMessage(`模板校验通过：${count} 个模板`)
+    return
+  }
+  vscode.window.showErrorMessage(`发现 ${errors.length} 个模板问题`, {
+    modal: true,
+    detail: errors.join("\n"),
+  })
+}
+
 /**
  * 注册创建组件和页面命令
  */
@@ -864,5 +1006,10 @@ export default function registerCreateComponents(context: vscode.ExtensionContex
   // 注册创建页面命令
   context.subscriptions.push(
     vscode.commands.registerCommand("assistiveTools.createPage", createPage)
+  )
+
+  context.subscriptions.push(
+    vscode.commands.registerCommand("assistiveTools.templates.exportBuiltIn", exportBuiltInTemplates),
+    vscode.commands.registerCommand("assistiveTools.templates.validate", validateTemplatesCommand)
   )
 }

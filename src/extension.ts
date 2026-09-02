@@ -1,6 +1,8 @@
 import * as vscode from "vscode"
 import registerEnumHover from "./commands/enum-hover"
 import registerCreateComponents from "./commands/create-components"
+import { registerNpmScripts } from "./npm-scripts"
+import { registerWechatPageSync } from "./commands/wechat-pages"
 
 /**
  * 插件激活时调用
@@ -13,6 +15,12 @@ export function activate(context: vscode.ExtensionContext) {
 
   // 注册创建组件和页面功能
   registerCreateComponents(context)
+
+  // 注册工作区脚本中心
+  registerNpmScripts(context)
+
+  // 注册微信小程序页面调试配置同步
+  registerWechatPageSync(context)
 }
 
 /**

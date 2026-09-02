@@ -1,17 +1,13 @@
-import { Component } from 'react'
 import { View } from '@tarojs/components'
-// import './${kebabName}.less' // 如果需要样式文件，请手动创建
+// import './index.less'
 
 /**
  * ${pascalName} 组件
  */
-export default class ${pascalName} extends Component {
-  render() {
-    return (
-      <View className="${kebabName}">
-        {/* ${pascalName} 组件 */}
-      </View>
-    )
-  }
+export default function ${pascalName}() {
+  return (
+    <View className="${kebabName}">
+      {/* ${pascalName} 组件 */}
+    </View>
+  )
 }
-

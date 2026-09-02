@@ -144,6 +144,24 @@ vsce publish
 
 ---
 
+## 方式三：发布到 Open VSX
+
+1. 先运行完整验证并生成固定版本的 VSIX：
+
+   ```bash
+   npm test
+   npm audit --omit=dev
+   npx @vscode/vsce package --no-yarn --out vscode-assistive-tools-0.1.0.vsix
+   ```
+
+2. 登录 [Open VSX 扩展管理页](https://open-vsx.org/user-settings/extensions)。
+3. 选择生成的 VSIX，检查扩展 ID 和版本号后发布。
+4. 发布完成后打开扩展详情页，确认最新版本、README 和安装入口已经更新。
+
+Marketplace 和 Open VSX 必须上传同一个已验证 VSIX，避免两个平台出现内容相同但构建产物不同的情况。
+
+---
+
 ## 更新已发布的插件
 
 ### 更新版本号

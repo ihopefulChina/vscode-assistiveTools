@@ -1,233 +1,261 @@
 # Assistive Tools
 
-面向日常前端开发的 VSCode 辅助工具。它可以从 TypeScript 枚举生成 Map 和 Options，也可以按照 Vue、UniApp、Taro 或项目自定义模板快速创建组件和页面。
+把前端项目里重复、易错、又不得不做的操作收进 VS Code：维护枚举映射、按模板创建文件、运行 Monorepo 脚本，以及同步微信小程序页面调试配置。
 
-[Visual Studio Marketplace](https://marketplace.visualstudio.com/items?itemName=ihopefulChina.vscode-assistive-tools) · [Open VSX](https://open-vsx.org/extension/ihopefulChina/vscode-assistive-tools) · [问题反馈](https://github.com/ihopefulChina/vscode-assistiveTools/issues)
+[![Visual Studio Marketplace](https://img.shields.io/visual-studio-marketplace/v/ihopefulChina.vscode-assistive-tools?label=VS%20Marketplace&color=0078d4)](https://marketplace.visualstudio.com/items?itemName=ihopefulChina.vscode-assistive-tools)
+[![Open VSX](https://img.shields.io/open-vsx/v/ihopefulChina/vscode-assistive-tools?label=Open%20VSX&color=c160ef)](https://open-vsx.org/extension/ihopefulChina/vscode-assistive-tools)
+[![VS Code](https://img.shields.io/badge/VS%20Code-%5E1.74.0-23a8f2)](https://code.visualstudio.com/)
+[![License](https://img.shields.io/badge/license-MIT-green)](./LICENSE.txt)
 
-## 功能
+## 先看实际效果
 
-- 从枚举及其 JSDoc 注释生成 Map、Options
-- 支持悬停操作和命令面板操作
-- 创建 Vue 2、Vue 3、UniApp、Taro 组件或页面
-- 根据当前工作区自动推荐模板
-- 使用 YAML 自定义多文件模板
-- 在多根工作区中按当前右键目录选择项目配置
+下面的 GIF 均录制自真实的 VS Code 扩展开发宿主。
 
-## 枚举转换
+### 枚举一键生成 Map / Options
 
-### 操作方式一：悬停生成
+将光标放在枚举名上，执行“转换枚举”。再次执行会更新已有生成块，并保留手工修改过的业务标签。
 
-1. 打开 `.ts` 或 `.tsx` 文件。
-2. 将鼠标移到枚举名称上，例如 `EStatus`。
-3. 点击悬停卡片中的“生成枚举转换”。
-4. Map 和 Options 会紧跟在枚举后生成。
+![枚举转换实际操作](docs/images/enum-convert.gif)
 
-### 操作方式二：命令面板生成
+### 从模板创建页面或组件
 
-1. 将光标放在枚举名称上。
-2. 按 `Cmd+Shift+P`（macOS）或 `Ctrl+Shift+P`（Windows/Linux）。
-3. 输入并选择“转换枚举”。
+选择模板、输入名称、预览即将写入的文件，确认后才真正创建。
 
-### 完整示例
+![模板中心实际操作](docs/images/template-center.gif)
 
-转换前：
+### 同步微信小程序页面调试配置
 
-```typescript
-enum EStatus {
-  /** 待处理 */
-  Pending = "pending",
-  /** User's choice */
-  "in-progress" = "in-progress",
+从 `app.config.ts` / `pages.config.ts` 提取主包和分包页面，预览后合并到最近的小程序项目根目录。
+
+![微信小程序页面同步实际操作](docs/images/wechat-page-sync.gif)
+
+## 安装
+
+- [Visual Studio Marketplace](https://marketplace.visualstudio.com/items?itemName=ihopefulChina.vscode-assistive-tools)
+- [Open VSX Registry](https://open-vsx.org/extension/ihopefulChina/vscode-assistive-tools)
+- 本地 VSIX：在命令面板运行 `Extensions: Install from VSIX...`，选择下载的 `.vsix`
+
+要求 VS Code `1.74.0` 或更高版本。
+
+## 0.1.0 能做什么
+
+| 场景 | 能力 | 关键保护 |
+| --- | --- | --- |
+| TypeScript 枚举 | 生成或更新 Map、Options | 识别同名冲突；更新时保留已有标签 |
+| 页面 / 组件创建 | Vue 2、Vue 3、UniApp、Taro 及自定义模板 | 写入前预览；拦截越界路径和符号链接逃逸 |
+| 根项目 / Monorepo | 汇总并运行每个 `package.json` 的脚本 | 根目录脚本固定纳入；按项目包管理器运行 |
+| 微信小程序 / Taro | 同步页面到 `project.private.config.json` | 保留 `query`、`scene`、`launchMode` 和手工名称 |
+
+## 实例 1：持续维护枚举 Map / Options
+
+输入：
+
+```ts
+export enum EOrderStatus {
+  /** 等待支付 */
+  Pending = "PENDING",
   /** 已完成 */
-  Completed = "completed",
-}
-
-const nextConfig = {
-  enabled: true,
+  Completed = "COMPLETED",
 }
 ```
 
-执行后：
+操作：将光标放在 `EOrderStatus` 上，通过悬停链接、灯泡或命令面板执行“转换枚举”。
 
-```typescript
-enum EStatus {
-  /** 待处理 */
-  Pending = "pending",
-  /** User's choice */
-  "in-progress" = "in-progress",
-  /** 已完成 */
-  Completed = "completed",
+输出：
+
+```ts
+// assistive-tools:enum EOrderStatus:start
+export const MOrderStatus = {
+  [EOrderStatus.Pending]: "等待支付",
+  [EOrderStatus.Completed]: "已完成",
 }
 
-export const MStatus = {
-  [EStatus.Pending]: "待处理",
-  [EStatus["in-progress"]]: "User's choice",
-  [EStatus.Completed]: "已完成",
-}
-
-export const OStatus = [
-  { value: EStatus.Pending, label: "待处理" },
-  { value: EStatus["in-progress"], label: "User's choice" },
-  { value: EStatus.Completed, label: "已完成" },
+export const OOrderStatus = [
+  { value: EOrderStatus.Pending, label: "等待支付" },
+  { value: EOrderStatus.Completed, label: "已完成" },
 ]
+// assistive-tools:enum EOrderStatus:end
+```
 
-const nextConfig = {
-  enabled: true,
+以后给枚举增加成员，再执行一次即可更新。若已把 `"等待支付"` 改成更贴近业务的文案，插件会保留该标签；如果文件里已有无法确认来源的 `MOrderStatus` 或 `OOrderStatus`，插件会报告冲突，不会静默覆盖。
+
+可选设置：
+
+```json
+{
+  "assistiveTools.enum.output": "both",
+  "assistiveTools.enum.useSatisfies": true
 }
 ```
 
-生成名称遵循以下规则：
+- `output`: `both`、`map` 或 `options`
+- `useSatisfies`: 为 Map 增加 `satisfies Record<Enum, string>` 类型校验
 
-| 枚举名称     | Map          | Options      |
-| ------------ | ------------ | ------------ |
-| `EStatus`    | `MStatus`    | `OStatus`    |
-| `Status`     | `MStatus`    | `OStatus`    |
-| `EOrderType` | `MOrderType` | `OOrderType` |
+## 实例 2：创建一个 Taro 页面
 
-如果当前作用域已经存在同名 Map 或 Options，插件会提示名称冲突，不会重复写入。
+1. 在资源管理器中右键目标目录，选择“创建页面”。
+2. 选择自动推荐的 Taro 模板。
+3. 输入 `OrderDetail`。
+4. 在预览中确认将创建的文件，然后点击“创建”。
 
-## 创建组件或页面
-
-### 操作步骤
-
-1. 在资源管理器中右键目标文件夹，也可以右键文件并使用它所在的目录。
-2. 选择“创建组件”或“创建页面”。
-3. 选择模板；自动识别到的模板会显示在第一项。
-4. 输入名称，例如 `MyUserCard`。
-5. 插件创建 `MyUserCard/` 文件夹并打开第一个生成文件。
-
-例如，在 Vue 3 项目中创建组件 `MyUserCard`：
+结果：
 
 ```text
-src/components/
-└── MyUserCard/
-    └── index.vue
+src/pages/
+└── OrderDetail/
+    └── index.tsx
 ```
 
-生成的 `index.vue`：
+插件会根据工作区依赖和项目文件自动推荐 Vue 2、Vue 3、UniApp 或 Taro。普通 Vite 项目不会仅因为存在 `vite.config.ts` 就被误判为 Vue。
 
-```vue
-<template>
-  <div class="my-user-card">
-    <!-- MyUserCard 组件 -->
-  </div>
-</template>
+### 自定义多文件模板
 
-<script setup lang="ts">
-// MyUserCard 组件
-</script>
-
-<style lang="scss" scoped>
-.my-user-card {
-  // 组件样式
-}
-</style>
-```
-
-### 内置模板
-
-| 项目类型 | 识别依据                                       | 输出文件    |
-| -------- | ---------------------------------------------- | ----------- |
-| Vue 2    | `vue@2` 或 `@vue/composition-api`              | `index.vue` |
-| Vue 3    | `vue@3` 或 `@vitejs/plugin-vue`                | `index.vue` |
-| UniApp   | `@dcloudio/*`、`manifest.json` 或 `pages.json` | `index.vue` |
-| Taro     | `@tarojs/taro` 或 `@tarojs/cli`                | `index.tsx` |
-
-普通 React/Svelte Vite 项目不会被误判为 Vue。多根工作区会使用当前右键目录所属项目的 `package.json` 和 `.templates`。
-
-## 自定义模板
-
-只有在模板选择器中明确选择“自定义模板”时，插件才会读取当前项目根目录的 `.templates`。内置模板不会被 `.templates` 静默覆盖。
-
-支持的文件名：
-
-- 组件：`.templates/vue-component.yml`、`.templates/component.yml` 或 `.templates/component.template`
-- 页面：`.templates/vue-page.yml`、`.templates/page.yml` 或 `.templates/page.template`
-
-### YAML 多文件模板示例
-
-创建 `.templates/component.yml`：
+在工作区创建 `.templates/order-detail-page.yml`：
 
 ```yaml
-name: "vue-component"
-description: "Vue 组件、样式和类型"
-tags: ["vue3", "typescript"]
+name: 订单详情页
+description: 页面、样式和类型一次生成
+tags: [taro, typescript]
+type: page
 tpl:
-  index.vue: |
-    <template>
-      <div class="${kebabName}">${pascalName}</div>
-    </template>
-
-    <script setup lang="ts">
-    import type { ${pascalName}Props } from "./types"
-
-    defineProps<${pascalName}Props>()
-    </script>
-
-    <style scoped src="./styles/index.scss"></style>
-  types.ts: |
-    export interface ${pascalName}Props {
-      title?: string
+  index.tsx: |
+    export default function ${pascalName}() {
+      return <View className="${kebabName}" />
     }
-  styles/index.scss: |
+  index.less: |
     .${kebabName} {
-      display: block;
+      min-height: 100vh;
+    }
+  types.ts: |
+    export interface ${pascalName}Params {
+      id: string
     }
 ```
 
-右键创建 `MyUserCard` 后得到：
+支持 `${name}`、`${pascalName}`、`${camelName}`、`${kebabName}`、`${type}`、`${date}`、`${time}`，也兼容 `[:=PascalName:]` 一类变量写法。
+
+命令面板还提供：
+
+- `模板：导出内置模板`：把选定框架的内置模板导出到 `.templates`
+- `模板：校验工作区模板`：检查 YAML、输出内容、重复路径和越界路径
+
+## 实例 3：在一个面板运行根目录和 Monorepo 脚本
+
+项目结构：
 
 ```text
-MyUserCard/
-├── index.vue
-├── types.ts
-└── styles/
-    └── index.scss
+shop-workspace/
+├── package.json               # 根目录 scripts
+├── pnpm-workspace.yaml
+└── packages/
+    ├── admin/package.json
+    └── mini-app/package.json
 ```
 
-YAML 中的输出路径必须位于新建的组件/页面文件夹内。`../` 越界路径、绝对路径和指向外部目录的符号链接会被拒绝。
+打开资源管理器底部的 `Assistive Scripts`：
 
-### 模板变量
+```text
+shop-workspace
+├── shop-workspace (根目录)    package.json
+│   ├── lint
+│   └── test
+├── @shop/admin                packages/admin
+│   ├── dev
+│   └── build
+└── @shop/mini-app             packages/mini-app
+    ├── dev:weapp
+    └── build:weapp
+```
 
-两种写法都受支持：`${variable}` 和 `[:=Variable:]`。
+点击脚本即可运行；运行中可停止。还可以收藏常用脚本、只看收藏，以及从“最近运行”快速重跑。
 
-以输入 `MyUserCard` 为例：
+发现规则：
 
-| 变量                                | 结果                  |
-| ----------------------------------- | --------------------- |
-| `${name}` / `[:=Name:]`             | `MyUserCard`          |
-| `${pascalName}` / `[:=PascalName:]` | `MyUserCard`          |
-| `${camelName}` / `[:=CamelName:]`   | `myUserCard`          |
-| `${kebabName}` / `[:=KebabName:]`   | `my-user-card`        |
-| `${type}` / `[:=Type:]`             | `component` 或 `page` |
-| `${date}` / `[:=Date:]`             | 当前日期              |
-| `${time}` / `[:=Time:]`             | 当前时间              |
+- 无论是否配置 workspaces，根目录 `package.json` 的脚本都会纳入
+- 支持 `package.json#workspaces` 和 `pnpm-workspace.yaml`
+- 支持包含与排除模式，并忽略常见生成目录
+- 优先读取 `packageManager` 字段，其次根据锁文件识别 npm、pnpm、Yarn 或 Bun
+- 脚本在所属 package 目录中运行，不会错误地统一切到仓库根目录
 
-旧格式 `.template` 适合只生成一个 `index.vue` 的场景；需要指定多个文件或子目录时请使用 YAML。
+## 实例 4：同步 Taro / 微信小程序调试页面
 
-## 开发与验证
+页面配置：
+
+```ts
+export default defineAppConfig({
+  pages: ["pages/home/index"],
+  subPackages: [
+    {
+      root: "packages/member",
+      pages: ["pages/profile/index"],
+    },
+  ],
+})
+```
+
+在 `app.config.ts` 或 `pages.config.ts` 上右键，执行“微信小程序：同步页面调试配置”。确认预览后，插件创建或更新：
+
+```json
+{
+  "condition": {
+    "miniprogram": {
+      "list": [
+        {
+          "name": "💻pages/home/index",
+          "pathName": "pages/home/index",
+          "query": "",
+          "launchMode": "default",
+          "scene": null
+        }
+      ]
+    }
+  }
+}
+```
+
+已有页面项不会被粗暴重建：插件保留调试参数 `query`、`scene`、`launchMode`，也保留不以 `💻` 开头的手工名称。在 Monorepo 中，它会优先定位离页面配置最近、包含 `project.config.json` 的小程序 package。
+
+如需保存页面配置时提示同步：
+
+```json
+{
+  "assistiveTools.wechat.syncOnSave": true
+}
+```
+
+默认关闭，避免保存文件时产生意外写入。
+
+## 命令一览
+
+| 命令 | 用途 |
+| --- | --- |
+| `转换枚举` | 生成或更新枚举 Map / Options |
+| `创建组件` / `创建页面` | 选择模板并预览生成文件 |
+| `模板：导出内置模板` | 将内置模板复制到工作区 |
+| `模板：校验工作区模板` | 校验 `.templates` 中的模板 |
+| `微信小程序：同步页面调试配置` | 合并页面调试配置 |
+
+脚本运行、停止、收藏、筛选和最近运行入口位于 `Assistive Scripts` 视图。
+
+## 行为边界
+
+- 枚举转换只处理可静态解析的普通枚举；声明文件和 `declare enum` 不会改写
+- 模板在确认前不写磁盘；覆盖项会在预览中明确标出
+- 模板输出只能位于新页面或组件目录内，不能通过绝对路径、`../` 或符号链接越界
+- 页面同步只解析字面量 `pages` / `subPackages.pages`；动态拼接无法可靠解析时会停止并提示
+- 页面同步只新增缺失项和更新插件生成的名称，不删除微信开发者工具中已有的其他调试项
+
+## 本地开发
 
 ```bash
 npm ci
 npm test
-npm run compile
 ```
 
-在 VSCode 中按 `F5` 可以启动扩展开发主机进行手动验证。发布前可运行：
+在 VS Code 中按 `F5` 启动扩展开发宿主。更完整的手工验收步骤见 [QUICK_START.md](./QUICK_START.md) 和 [TESTING.md](./TESTING.md)，发布流程见 [PUBLISHING.md](./PUBLISHING.md)。
 
-```bash
-npx @vscode/vsce package --no-yarn
-```
+## 反馈与许可
 
-## 0.0.6 更新
-
-- 修复枚举生成位置、字符串成员、注释转义和名称冲突判断
-- 支持从命令面板安全执行枚举转换
-- 修复 PascalCase、camelCase、kebab-case 转换
-- 修复 Vite 项目误识别和多根工作区模板选择
-- 限制自定义模板输出路径并升级 YAML 解析依赖
-- 增加自动化回归测试和完整操作示例
-
-## 许可证
-
-[MIT](./LICENSE.txt)
+- 问题反馈：[GitHub Issues](https://github.com/ihopefulChina/vscode-assistiveTools/issues)
+- 源码：[GitHub](https://github.com/ihopefulChina/vscode-assistiveTools)
+- 许可：[MIT](./LICENSE.txt)

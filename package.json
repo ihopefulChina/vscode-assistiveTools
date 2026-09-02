@@ -1,8 +1,8 @@
 {
   "name": "vscode-assistive-tools",
   "displayName": "Assistive Tools",
-  "description": "VSCode 辅助开发工具：安全生成枚举 Map/Options，快速创建 Vue、UniApp、Taro 组件和页面。",
-  "version": "0.0.6",
+  "description": "VSCode 辅助开发工具：枚举 Map/Options、模板中心、Monorepo 脚本和小程序页面配置同步。",
+  "version": "0.1.0",
   "publisher": "ihopefulChina",
   "repository": {
     "type": "git",
@@ -23,6 +23,9 @@
     "typescript",
     "javascript",
     "code-generation",
+    "monorepo",
+    "npm-scripts",
+    "taro",
     "assistive"
   ],
   "engines": {
@@ -40,7 +43,20 @@
     "onLanguage:javascriptreact",
     "onCommand:assistiveTools.convertEnum",
     "onCommand:assistiveTools.createComponent",
-    "onCommand:assistiveTools.createPage"
+    "onCommand:assistiveTools.createPage",
+    "onCommand:assistiveTools.templates.exportBuiltIn",
+    "onCommand:assistiveTools.templates.validate",
+    "onCommand:assistiveTools.scripts.refresh",
+    "onCommand:assistiveTools.scripts.run",
+    "onCommand:assistiveTools.scripts.stop",
+    "onCommand:assistiveTools.scripts.toggleFavorite",
+    "onCommand:assistiveTools.scripts.showFavorites",
+    "onCommand:assistiveTools.scripts.showAll",
+    "onCommand:assistiveTools.scripts.runRecent",
+    "onCommand:assistiveTools.wechat.syncPages",
+    "onView:assistiveToolsScripts",
+    "workspaceContains:**/app.config.ts",
+    "workspaceContains:**/pages.config.ts"
   ],
   "main": "./out/extension.js",
   "contributes": {
@@ -58,19 +74,159 @@
         "command": "assistiveTools.createPage",
         "title": "创建页面",
         "icon": "$(file-code)"
+      },
+      {
+        "command": "assistiveTools.templates.exportBuiltIn",
+        "title": "模板：导出内置模板",
+        "icon": "$(cloud-download)"
+      },
+      {
+        "command": "assistiveTools.templates.validate",
+        "title": "模板：校验工作区模板",
+        "icon": "$(check-all)"
+      },
+      {
+        "command": "assistiveTools.scripts.refresh",
+        "title": "刷新脚本",
+        "icon": "$(refresh)"
+      },
+      {
+        "command": "assistiveTools.scripts.run",
+        "title": "运行脚本",
+        "icon": "$(run)"
+      },
+      {
+        "command": "assistiveTools.scripts.stop",
+        "title": "停止脚本",
+        "icon": "$(debug-stop)"
+      },
+      {
+        "command": "assistiveTools.scripts.toggleFavorite",
+        "title": "收藏或取消收藏脚本",
+        "icon": "$(star)"
+      },
+      {
+        "command": "assistiveTools.scripts.showFavorites",
+        "title": "仅显示收藏脚本",
+        "icon": "$(star-full)"
+      },
+      {
+        "command": "assistiveTools.scripts.showAll",
+        "title": "显示全部脚本",
+        "icon": "$(list-tree)"
+      },
+      {
+        "command": "assistiveTools.scripts.runRecent",
+        "title": "运行最近脚本",
+        "icon": "$(history)"
+      },
+      {
+        "command": "assistiveTools.wechat.syncPages",
+        "title": "微信小程序：同步页面调试配置",
+        "icon": "$(sync)"
       }
     ],
     "menus": {
       "explorer/context": [
         {
           "command": "assistiveTools.createComponent",
-          "group": "navigation"
+          "group": "navigation",
+          "when": "resourceScheme == file"
         },
         {
           "command": "assistiveTools.createPage",
-          "group": "navigation"
+          "group": "navigation",
+          "when": "resourceScheme == file"
+        },
+        {
+          "command": "assistiveTools.wechat.syncPages",
+          "group": "assistiveTools@1",
+          "when": "resourceScheme == file && (resourceFilename == app.config.ts || resourceFilename == pages.config.ts)"
+        }
+      ],
+      "view/title": [
+        {
+          "command": "assistiveTools.scripts.runRecent",
+          "when": "view == assistiveToolsScripts",
+          "group": "navigation@1"
+        },
+        {
+          "command": "assistiveTools.scripts.showFavorites",
+          "when": "view == assistiveToolsScripts && !assistiveTools.scripts.favoritesOnly",
+          "group": "navigation@2"
+        },
+        {
+          "command": "assistiveTools.scripts.showAll",
+          "when": "view == assistiveToolsScripts && assistiveTools.scripts.favoritesOnly",
+          "group": "navigation@2"
+        },
+        {
+          "command": "assistiveTools.scripts.refresh",
+          "when": "view == assistiveToolsScripts",
+          "group": "navigation@3"
+        }
+      ],
+      "view/item/context": [
+        {
+          "command": "assistiveTools.scripts.run",
+          "when": "view == assistiveToolsScripts && viewItem =~ /^assistiveScripts\\.script(\\.favorite)?$/",
+          "group": "inline@1"
+        },
+        {
+          "command": "assistiveTools.scripts.stop",
+          "when": "view == assistiveToolsScripts && viewItem == assistiveScripts.script.running",
+          "group": "inline@1"
+        },
+        {
+          "command": "assistiveTools.scripts.toggleFavorite",
+          "when": "view == assistiveToolsScripts && viewItem =~ /^assistiveScripts\\.script/",
+          "group": "inline@2"
         }
       ]
+    },
+    "views": {
+      "explorer": [
+        {
+          "id": "assistiveToolsScripts",
+          "name": "Assistive Scripts"
+        }
+      ]
+    },
+    "viewsWelcome": [
+      {
+        "view": "assistiveToolsScripts",
+        "contents": "当前工作区没有可运行的 package.json 脚本。\n[刷新脚本](command:assistiveTools.scripts.refresh)"
+      }
+    ],
+    "configuration": {
+      "title": "Assistive Tools",
+      "properties": {
+        "assistiveTools.enum.output": {
+          "type": "string",
+          "enum": [
+            "both",
+            "map",
+            "options"
+          ],
+          "enumDescriptions": [
+            "生成 Map 和 Options",
+            "只生成 Map",
+            "只生成 Options"
+          ],
+          "default": "both",
+          "description": "枚举转换的输出内容。"
+        },
+        "assistiveTools.enum.useSatisfies": {
+          "type": "boolean",
+          "default": false,
+          "description": "为枚举 Map 追加 satisfies Record<Enum, string> 类型校验。"
+        },
+        "assistiveTools.wechat.syncOnSave": {
+          "type": "boolean",
+          "default": false,
+          "description": "保存 app.config.ts 或 pages.config.ts 后提示同步 project.private.config.json。"
+        }
+      }
     }
   },
   "scripts": {

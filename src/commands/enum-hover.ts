@@ -5,6 +5,16 @@ import type * as TypeScript from "typescript"
 
 const ts: typeof TypeScript = loadTypescriptModule()
 
+const ENUM_DOCUMENT_SELECTOR: vscode.DocumentSelector = [
+  "typescript",
+  "typescriptreact",
+  "javascript",
+  "javascriptreact",
+].flatMap((language) => [
+  { language, scheme: "file" },
+  { language, scheme: "untitled" },
+])
+
 type EnumCommandArgument = {
   sourceUri: string
   enumName: string
@@ -14,6 +24,15 @@ type EnumCommandArgument = {
 type EnumChild = {
   access: string
   comment: string
+}
+
+type EnumOutputMode = "both" | "map" | "options"
+
+type ExistingGeneratedBlock = {
+  start: number
+  end: number
+  labels: Map<string, string>
+  recognizedNames: Set<string>
 }
 
 type EnumNameMap = {
@@ -28,6 +47,7 @@ type EnumParseResult = {
   nameMap: EnumNameMap
   children: EnumChild[]
   collisions: string[]
+  existing?: ExistingGeneratedBlock
 }
 
 /**
@@ -44,9 +64,31 @@ class HoverProvider implements vscode.HoverProvider {
     const commandUri = vscode.Uri.parse(
       `command:assistiveTools.convertEnum?${encodeURIComponent(JSON.stringify(args))}`
     )
-    const markdownString = new vscode.MarkdownString(`[生成枚举转换](${commandUri})`)
+    const markdownString = new vscode.MarkdownString(`[生成或更新枚举转换](${commandUri})`)
     markdownString.isTrusted = true
     return new vscode.Hover(markdownString)
+  }
+}
+
+class EnumCodeActionProvider implements vscode.CodeActionProvider {
+  public provideCodeActions(
+    document: vscode.TextDocument,
+    range: vscode.Range
+  ): vscode.CodeAction[] | undefined {
+    const target = getEnumTarget(document, range.start)
+    if (!target) {
+      return undefined
+    }
+    const action = new vscode.CodeAction(
+      "Assistive Tools：生成或更新枚举 Map/Options",
+      vscode.CodeActionKind.RefactorRewrite
+    )
+    action.command = {
+      command: "assistiveTools.convertEnum",
+      title: action.title,
+      arguments: [target],
+    }
+    return [action]
   }
 }
 
@@ -56,8 +98,16 @@ class HoverProvider implements vscode.HoverProvider {
 export default function registerEnumHover(context: vscode.ExtensionContext) {
   context.subscriptions.push(
     vscode.languages.registerHoverProvider(
-      ["typescript", "typescriptreact", "javascript", "javascriptreact"],
+      ENUM_DOCUMENT_SELECTOR,
       new HoverProvider()
+    )
+  )
+
+  context.subscriptions.push(
+    vscode.languages.registerCodeActionsProvider(
+      ENUM_DOCUMENT_SELECTOR,
+      new EnumCodeActionProvider(),
+      { providedCodeActionKinds: [vscode.CodeActionKind.RefactorRewrite] }
     )
   )
 
@@ -76,19 +126,42 @@ export default function registerEnumHover(context: vscode.ExtensionContext) {
           return showAutoClosingInformationMessage("未找到枚举定义，请重新将光标置于枚举名称上")
         }
 
-        if (result.collisions.length > 0) {
+        const configuration = vscode.workspace.getConfiguration("assistiveTools.enum")
+        const outputMode = configuration.get<EnumOutputMode>("output", "both")
+        const useSatisfies = configuration.get<boolean>("useSatisfies", false)
+        const relevantCollisions = result.collisions.filter((name) => {
+          if (outputMode === "map") {
+            return name === result.nameMap.mapName
+          }
+          if (outputMode === "options") {
+            return name === result.nameMap.optionName
+          }
+          return true
+        })
+        if (relevantCollisions.length > 0) {
           return showAutoClosingInformationMessage(
-            `转换代码已存在或名称冲突：${result.collisions.join("、")}`
+            `存在无法安全覆盖的同名变量：${relevantCollisions.join("、")}`
           )
         }
 
-        const generated = renderEnumConversion(document, result)
+        const generated = renderEnumConversion(document, result, outputMode, useSatisfies)
         const edit = new vscode.WorkspaceEdit()
-        edit.insert(
-          document.uri,
-          document.positionAt(result.declaration.getEnd()),
-          `\n\n${generated}`
-        )
+        if (result.existing) {
+          edit.replace(
+            document.uri,
+            new vscode.Range(
+              document.positionAt(result.existing.start),
+              document.positionAt(result.existing.end)
+            ),
+            generated
+          )
+        } else {
+          edit.insert(
+            document.uri,
+            document.positionAt(result.declaration.getEnd()),
+            `\n\n${generated}`
+          )
+        }
 
         const applied = await vscode.workspace.applyEdit(edit)
         if (!applied) {
@@ -96,7 +169,7 @@ export default function registerEnumHover(context: vscode.ExtensionContext) {
           return
         }
 
-        showAutoClosingInformationMessage("生成成功", 300)
+        showAutoClosingInformationMessage(result.existing ? "更新成功" : "生成成功", 300)
       }
     )
   )
@@ -174,12 +247,18 @@ function parseEnum(
   }
 
   const nameMap = deriveEnumNames(declaration.name.text)
+  const existing = findExistingGeneratedBlock(sourceFile, declaration, nameMap)
   const bindings = collectScopeValueBindings(declaration)
-  const collisions = [nameMap.mapName, nameMap.optionName].filter((name) => bindings.has(name))
-  const children = declaration.members.map((member) => ({
-    access: createMemberAccess(declaration.name.text, member, sourceFile),
-    comment: getMemberComment(member, sourceFile),
-  }))
+  const collisions = [nameMap.mapName, nameMap.optionName].filter(
+    (name) => bindings.has(name) && !existing?.recognizedNames.has(name)
+  )
+  const children = declaration.members.map((member) => {
+    const access = createMemberAccess(declaration.name.text, member, sourceFile)
+    return {
+      access,
+      comment: existing?.labels.get(normalizeMemberAccess(access)) ?? getMemberComment(member, sourceFile),
+    }
+  })
 
   return {
     declaration,
@@ -187,10 +266,16 @@ function parseEnum(
     nameMap,
     children,
     collisions,
+    existing,
   }
 }
 
-function renderEnumConversion(document: vscode.TextDocument, result: EnumParseResult): string {
+function renderEnumConversion(
+  document: vscode.TextDocument,
+  result: EnumParseResult,
+  outputMode: EnumOutputMode,
+  useSatisfies: boolean
+): string {
   const startLine = document.positionAt(result.declaration.getStart(result.sourceFile)).line
   const indent = document.lineAt(startLine).text.match(/^\s*/)?.[0] ?? ""
   const exportPrefix =
@@ -198,25 +283,182 @@ function renderEnumConversion(document: vscode.TextDocument, result: EnumParseRe
       ? "export "
       : ""
 
-  const lines: string[] = [`${exportPrefix}const ${result.nameMap.mapName} = {`]
-  result.children.forEach((item, index) => {
-    lines.push(
-      `  [${item.access}]: ${JSON.stringify(item.comment)}${
-        index < result.children.length - 1 ? "," : ""
-      }`
-    )
-  })
-  lines.push("}", "", `${exportPrefix}const ${result.nameMap.optionName} = [`)
-  result.children.forEach((item, index) => {
-    lines.push(
-      `  { value: ${item.access}, label: ${JSON.stringify(item.comment)} }${
-        index < result.children.length - 1 ? "," : ""
-      }`
-    )
-  })
-  lines.push("]")
+  const lines: string[] = [`// assistive-tools:enum ${result.nameMap.name}:start`]
+  if (outputMode === "both" || outputMode === "map") {
+    lines.push(`${exportPrefix}const ${result.nameMap.mapName} = {`)
+    result.children.forEach((item, index) => {
+      lines.push(
+        `  [${item.access}]: ${JSON.stringify(item.comment)}${
+          index < result.children.length - 1 ? "," : ""
+        }`
+      )
+    })
+    lines.push(useSatisfies ? `} satisfies Record<${result.nameMap.name}, string>` : "}")
+  }
+
+  if (outputMode === "both") {
+    lines.push("")
+  }
+
+  if (outputMode === "both" || outputMode === "options") {
+    lines.push(`${exportPrefix}const ${result.nameMap.optionName} = [`)
+    result.children.forEach((item, index) => {
+      lines.push(
+        `  { value: ${item.access}, label: ${JSON.stringify(item.comment)} }${
+          index < result.children.length - 1 ? "," : ""
+        }`
+      )
+    })
+    lines.push("]")
+  }
+  lines.push(`// assistive-tools:enum ${result.nameMap.name}:end`)
 
   return lines.map((line) => (line ? `${indent}${line}` : "")).join("\n")
+}
+
+function findExistingGeneratedBlock(
+  sourceFile: TypeScript.SourceFile,
+  declaration: TypeScript.EnumDeclaration,
+  nameMap: EnumNameMap
+): ExistingGeneratedBlock | undefined {
+  const source = sourceFile.getFullText()
+  const markerStart = `// assistive-tools:enum ${nameMap.name}:start`
+  const markerEnd = `// assistive-tools:enum ${nameMap.name}:end`
+  const markerStartIndex = source.indexOf(markerStart, declaration.getEnd())
+  const markerEndIndex =
+    markerStartIndex >= 0 ? source.indexOf(markerEnd, markerStartIndex + markerStart.length) : -1
+  const mapBinding = findVariableBinding(declaration, nameMap.mapName)
+  const optionBinding = findVariableBinding(declaration, nameMap.optionName)
+
+  if (markerStartIndex >= 0 && markerEndIndex >= 0) {
+    const isInsideMarker = (
+      binding:
+        | { statement: TypeScript.VariableStatement; declaration: TypeScript.VariableDeclaration }
+        | undefined
+    ) =>
+      !!binding &&
+      binding.statement.getStart(sourceFile) > markerStartIndex &&
+      binding.statement.getEnd() < markerEndIndex
+    const markedMap = isInsideMarker(mapBinding) ? mapBinding : undefined
+    const markedOptions = isInsideMarker(optionBinding) ? optionBinding : undefined
+    const recognizedNames = new Set<string>()
+    if (markedMap) recognizedNames.add(nameMap.mapName)
+    if (markedOptions) recognizedNames.add(nameMap.optionName)
+    return {
+      start: lineStartOffset(source, markerStartIndex),
+      end: markerEndIndex + markerEnd.length,
+      labels: collectExistingLabels(
+        sourceFile,
+        markedMap?.declaration,
+        markedOptions?.declaration
+      ),
+      recognizedNames,
+    }
+  }
+
+  if (!mapBinding || !optionBinding) {
+    return undefined
+  }
+  const bindings = [mapBinding, optionBinding].sort(
+    (left, right) => left.statement.getStart(sourceFile) - right.statement.getStart(sourceFile)
+  )
+  const firstStart = bindings[0].statement.getStart(sourceFile)
+  const firstEnd = bindings[0].statement.getEnd()
+  const secondStart = bindings[1].statement.getStart(sourceFile)
+  if (
+    source.slice(declaration.getEnd(), firstStart).trim() !== "" ||
+    source.slice(firstEnd, secondStart).trim() !== ""
+  ) {
+    return undefined
+  }
+
+  return {
+    start: lineStartOffset(source, firstStart),
+    end: bindings[1].statement.getEnd(),
+    labels: collectExistingLabels(sourceFile, mapBinding.declaration, optionBinding.declaration),
+    recognizedNames: new Set([nameMap.mapName, nameMap.optionName]),
+  }
+}
+
+function lineStartOffset(source: string, offset: number): number {
+  const previousBreak = source.lastIndexOf("\n", offset - 1)
+  return previousBreak < 0 ? 0 : previousBreak + 1
+}
+
+function findVariableBinding(
+  declaration: TypeScript.EnumDeclaration,
+  name: string
+): { statement: TypeScript.VariableStatement; declaration: TypeScript.VariableDeclaration } | undefined {
+  const parent = declaration.parent
+  if (!(ts.isSourceFile(parent) || ts.isModuleBlock(parent))) {
+    return undefined
+  }
+  for (const statement of parent.statements) {
+    if (!ts.isVariableStatement(statement)) {
+      continue
+    }
+    for (const variable of statement.declarationList.declarations) {
+      if (ts.isIdentifier(variable.name) && variable.name.text === name) {
+        return { statement, declaration: variable }
+      }
+    }
+  }
+  return undefined
+}
+
+function collectExistingLabels(
+  sourceFile: TypeScript.SourceFile,
+  mapDeclaration?: TypeScript.VariableDeclaration,
+  optionDeclaration?: TypeScript.VariableDeclaration
+): Map<string, string> {
+  const labels = new Map<string, string>()
+  if (mapDeclaration?.initializer && ts.isObjectLiteralExpression(mapDeclaration.initializer)) {
+    for (const property of mapDeclaration.initializer.properties) {
+      if (
+        ts.isPropertyAssignment(property) &&
+        ts.isComputedPropertyName(property.name) &&
+        isStringLiteralLike(property.initializer)
+      ) {
+        labels.set(
+          normalizeMemberAccess(property.name.expression.getText(sourceFile)),
+          property.initializer.text
+        )
+      }
+    }
+  }
+
+  if (optionDeclaration?.initializer && ts.isArrayLiteralExpression(optionDeclaration.initializer)) {
+    for (const element of optionDeclaration.initializer.elements) {
+      if (!ts.isObjectLiteralExpression(element)) {
+        continue
+      }
+      const valueProperty = element.properties.find(
+        (property): property is TypeScript.PropertyAssignment =>
+          ts.isPropertyAssignment(property) && property.name.getText(sourceFile) === "value"
+      )
+      const labelProperty = element.properties.find(
+        (property): property is TypeScript.PropertyAssignment =>
+          ts.isPropertyAssignment(property) && property.name.getText(sourceFile) === "label"
+      )
+      if (valueProperty && labelProperty && isStringLiteralLike(labelProperty.initializer)) {
+        const key = normalizeMemberAccess(valueProperty.initializer.getText(sourceFile))
+        if (!labels.has(key)) {
+          labels.set(key, labelProperty.initializer.text)
+        }
+      }
+    }
+  }
+  return labels
+}
+
+function isStringLiteralLike(
+  node: TypeScript.Expression
+): node is TypeScript.StringLiteral | TypeScript.NoSubstitutionTemplateLiteral {
+  return ts.isStringLiteral(node) || ts.isNoSubstitutionTemplateLiteral(node)
+}
+
+function normalizeMemberAccess(access: string): string {
+  return access.replace(/\s+/g, "")
 }
 
 function createSourceFile(document: vscode.TextDocument): TypeScript.SourceFile {
