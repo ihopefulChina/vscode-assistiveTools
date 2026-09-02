@@ -1,0 +1,47 @@
+version: 1
+
+changes:
+  baseRef: origin/main
+
+checks:
+  - id: test
+    name: 编译与单元测试
+    command: npm test
+    paths:
+      - src/**
+      - test/**
+      - resources/**
+      - package.json
+      - package-lock.json
+      - tsconfig.json
+    required: true
+
+  - id: audit
+    name: 依赖安全审计
+    command: npm audit --audit-level=high
+    paths:
+      - package.json
+      - package-lock.json
+    required: true
+
+generated:
+  - id: extension-build
+    name: VS Code 扩展编译产物
+    sources:
+      - src/**
+      - tsconfig.json
+      - package.json
+      - package-lock.json
+    outputs:
+      - out/**
+    command: npm run compile
+    required: true
+
+release:
+  requireCleanWorkingTree: true
+  requiredChecks:
+    - test
+    - audit
+  artifacts:
+    - vscode-assistive-tools-0.2.0.vsix
+  reportPath: .assistive-tools/release-readiness.md

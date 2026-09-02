@@ -1,8 +1,8 @@
 {
   "name": "vscode-assistive-tools",
   "displayName": "Assistive Tools",
-  "description": "VSCode 辅助开发工具：枚举 Map/Options、模板中心、Monorepo 脚本和小程序页面配置同步。",
-  "version": "0.1.0",
+  "description": "VSCode 辅助开发工具：项目工作流、改动验证、生成物保护、发布报告、模板与脚本中心。",
+  "version": "0.2.0",
   "publisher": "ihopefulChina",
   "repository": {
     "type": "git",
@@ -25,6 +25,9 @@
     "code-generation",
     "monorepo",
     "npm-scripts",
+    "workflow",
+    "validation",
+    "release-readiness",
     "taro",
     "assistive"
   ],
@@ -54,12 +57,30 @@
     "onCommand:assistiveTools.scripts.showAll",
     "onCommand:assistiveTools.scripts.runRecent",
     "onCommand:assistiveTools.wechat.syncPages",
+    "onCommand:assistiveTools.workflow.createConfig",
+    "onCommand:assistiveTools.workflow.recommendAndRun",
+    "onCommand:assistiveTools.workflow.checkGenerated",
+    "onCommand:assistiveTools.workflow.releaseReport",
+    "onCommand:assistiveTools.workflow.refresh",
     "onView:assistiveToolsScripts",
+    "onView:assistiveToolsWorkflow",
+    "workspaceContains:.assistive-tools/workflow.yml",
+    "workspaceContains:.assistive-tools/workflow.yaml",
+    "workspaceContains:.assistive-tools/workflow.json",
     "workspaceContains:**/app.config.ts",
     "workspaceContains:**/pages.config.ts"
   ],
   "main": "./out/extension.js",
   "contributes": {
+    "viewsContainers": {
+      "activitybar": [
+        {
+          "id": "assistiveTools",
+          "title": "Assistive Tools",
+          "icon": "resources/images/assistive-tools.svg"
+        }
+      ]
+    },
     "commands": [
       {
         "command": "assistiveTools.convertEnum",
@@ -124,6 +145,31 @@
         "command": "assistiveTools.wechat.syncPages",
         "title": "微信小程序：同步页面调试配置",
         "icon": "$(sync)"
+      },
+      {
+        "command": "assistiveTools.workflow.createConfig",
+        "title": "工作流：创建或打开项目配置",
+        "icon": "$(new-file)"
+      },
+      {
+        "command": "assistiveTools.workflow.recommendAndRun",
+        "title": "工作流：推荐并运行验证",
+        "icon": "$(run-all)"
+      },
+      {
+        "command": "assistiveTools.workflow.checkGenerated",
+        "title": "工作流：检查生成物",
+        "icon": "$(shield)"
+      },
+      {
+        "command": "assistiveTools.workflow.releaseReport",
+        "title": "工作流：生成发布就绪报告",
+        "icon": "$(report)"
+      },
+      {
+        "command": "assistiveTools.workflow.refresh",
+        "title": "工作流：刷新状态",
+        "icon": "$(refresh)"
       }
     ],
     "menus": {
@@ -164,6 +210,21 @@
           "command": "assistiveTools.scripts.refresh",
           "when": "view == assistiveToolsScripts",
           "group": "navigation@3"
+        },
+        {
+          "command": "assistiveTools.workflow.recommendAndRun",
+          "when": "view == assistiveToolsWorkflow",
+          "group": "navigation@1"
+        },
+        {
+          "command": "assistiveTools.workflow.releaseReport",
+          "when": "view == assistiveToolsWorkflow",
+          "group": "navigation@2"
+        },
+        {
+          "command": "assistiveTools.workflow.refresh",
+          "when": "view == assistiveToolsWorkflow",
+          "group": "navigation@3"
         }
       ],
       "view/item/context": [
@@ -185,10 +246,14 @@
       ]
     },
     "views": {
-      "explorer": [
+      "assistiveTools": [
         {
           "id": "assistiveToolsScripts",
-          "name": "Assistive Scripts"
+          "name": "项目脚本"
+        },
+        {
+          "id": "assistiveToolsWorkflow",
+          "name": "发布工作流"
         }
       ]
     },
@@ -196,6 +261,10 @@
       {
         "view": "assistiveToolsScripts",
         "contents": "当前工作区没有可运行的 package.json 脚本。\n[刷新脚本](command:assistiveTools.scripts.refresh)"
+      },
+      {
+        "view": "assistiveToolsWorkflow",
+        "contents": "为项目配置按改动推荐的验证、生成物保护与发布报告。\n[创建工作流配置](command:assistiveTools.workflow.createConfig)"
       }
     ],
     "configuration": {
@@ -220,6 +289,11 @@
           "type": "boolean",
           "default": false,
           "description": "为枚举 Map 追加 satisfies Record<Enum, string> 类型校验。"
+        },
+        "assistiveTools.templates.useCamelCaseDir": {
+          "type": "boolean",
+          "default": false,
+          "description": "创建页面或组件时使用 camelCase 目录名；默认使用 kebab-case。"
         },
         "assistiveTools.wechat.syncOnSave": {
           "type": "boolean",

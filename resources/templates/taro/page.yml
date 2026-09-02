@@ -1,0 +1,25 @@
+name: Taro 函数式页面
+description: Taro React 页面，包含 TSX 与 Less Module
+tags: [taro, react, page]
+type: page
+tpl:
+  index.tsx: |
+    import { View } from '@tarojs/components'
+    import { FC, memo } from 'react'
+    import styles from './index.module.less'
+
+    const Component: FC = () => {
+      return (
+        <View className={styles.${camelName}Style}>
+          ${camelName}
+        </View>
+      )
+    }
+
+    const ${pascalName} = memo(Component)
+    ${pascalName}.displayName = '${pascalName}'
+    export default ${pascalName}
+  index.module.less: |
+    .${camelName}Style {
+      min-height: 100%;
+    }

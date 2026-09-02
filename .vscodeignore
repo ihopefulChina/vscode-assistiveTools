@@ -1,5 +1,6 @@
 .vscode/**
 .vscode-test/**
+.assistive-tools/**
 src/**
 test/**
 .gitignore
@@ -8,4 +9,3 @@ vsc-extension-quickstart.md
 **/tsconfig.json
 **/*.map
 **/*.ts
-

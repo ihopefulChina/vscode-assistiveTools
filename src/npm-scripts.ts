@@ -42,7 +42,9 @@ export function getWorkspacePatterns(
   if (pnpmWorkspaceContent) {
     const parsed = yaml.load(pnpmWorkspaceContent) as { packages?: unknown } | undefined
     if (Array.isArray(parsed?.packages)) {
-      rawPatterns.push(...parsed!.packages.filter((item): item is string => typeof item === "string"))
+      rawPatterns.push(
+        ...parsed!.packages.filter((item): item is string => typeof item === "string")
+      )
     }
   }
 
@@ -125,9 +127,7 @@ export async function discoverWorkspacePackages(
 
   const matches = await Promise.all(
     patterns.include.map((pattern) => {
-      const packagePattern = pattern.endsWith("package.json")
-        ? pattern
-        : `${pattern}/package.json`
+      const packagePattern = pattern.endsWith("package.json") ? pattern : `${pattern}/package.json`
       return vscode.workspace.findFiles(
         new vscode.RelativePattern(workspaceFolder, packagePattern),
         "**/{node_modules,.git,dist,build,out,.next,.turbo}/**"
@@ -152,7 +152,9 @@ export async function discoverWorkspacePackages(
         return undefined
       }
       const packageDirectory = path.dirname(packageJsonPath)
-      const relativeDirectory = normalizeRelativePath(path.relative(workspaceRoot, packageDirectory))
+      const relativeDirectory = normalizeRelativePath(
+        path.relative(workspaceRoot, packageDirectory)
+      )
       const scripts = Object.entries(packageJson.scripts || {})
         .filter((entry): entry is [string, string] => typeof entry[1] === "string")
         .map(([name, command]) => ({ name, command }))
@@ -164,7 +166,9 @@ export async function discoverWorkspacePackages(
         packageJsonPath,
         packageDirectory,
         relativeDirectory,
-        packageName: packageJson.name || (relativeDirectory ? path.basename(packageDirectory) : workspaceFolder.name),
+        packageName:
+          packageJson.name ||
+          (relativeDirectory ? path.basename(packageDirectory) : workspaceFolder.name),
         isRoot: packageJsonPath === rootPackagePath,
         packageManager,
         scripts,
@@ -215,6 +219,9 @@ class WorkspaceScriptsItem extends vscode.TreeItem {
     public readonly packages: PackageScriptsItem[]
   ) {
     super(folder.name, vscode.TreeItemCollapsibleState.Expanded)
+    const scriptCount = packages.reduce((total, item) => total + item.scripts.length, 0)
+    this.description = `${packages.length} 个 package · ${scriptCount} 个脚本`
+    this.tooltip = `${folder.uri.fsPath}\n已发现 ${packages.length} 个 package、${scriptCount} 个脚本`
     this.iconPath = new vscode.ThemeIcon("root-folder")
   }
 }
@@ -230,7 +237,7 @@ class PackageScriptsItem extends vscode.TreeItem {
       definition.isRoot ? `${definition.packageName} (根目录)` : definition.packageName,
       vscode.TreeItemCollapsibleState.Collapsed
     )
-    this.description = definition.isRoot ? "package.json" : definition.relativeDirectory
+    this.description = `${definition.isRoot ? "根 package.json" : definition.relativeDirectory} · ${scripts.length} 项`
     this.tooltip = definition.packageJsonPath
     this.iconPath = new vscode.ThemeIcon("package")
   }
@@ -262,7 +269,9 @@ export class ScriptItem extends vscode.TreeItem {
       : this.favorite
         ? "assistiveScripts.script.favorite"
         : "assistiveScripts.script"
-    this.iconPath = new vscode.ThemeIcon(this.running ? "loading~spin" : this.favorite ? "star-full" : "run")
+    this.iconPath = new vscode.ThemeIcon(
+      this.running ? "loading~spin" : this.favorite ? "star-full" : "run"
+    )
   }
 }
 
@@ -277,7 +286,9 @@ export class NpmScriptsProvider implements vscode.TreeDataProvider<ScriptsTreeNo
   constructor(private readonly context: vscode.ExtensionContext) {
     this.context.subscriptions.push(
       vscode.tasks.onDidEndTask((event) => {
-        const match = [...this.running.entries()].find(([, execution]) => execution === event.execution)
+        const match = [...this.running.entries()].find(
+          ([, execution]) => execution === event.execution
+        )
         if (match) {
           this.running.delete(match[0])
           const item = this.scriptsById.get(match[0])
@@ -299,7 +310,9 @@ export class NpmScriptsProvider implements vscode.TreeDataProvider<ScriptsTreeNo
     const favoritesOnly = this.context.globalState.get<boolean>(FAVORITES_ONLY_KEY, false)
     if (!element) {
       return favoritesOnly
-        ? this.roots.filter((root) => root.packages.some((item) => item.scripts.some((script) => script.favorite)))
+        ? this.roots.filter((root) =>
+            root.packages.some((item) => item.scripts.some((script) => script.favorite))
+          )
         : this.roots
     }
     if (element instanceof WorkspaceScriptsItem) {
@@ -318,25 +331,27 @@ export class NpmScriptsProvider implements vscode.TreeDataProvider<ScriptsTreeNo
     const folders = vscode.workspace.workspaceFolders || []
     const definitions = await Promise.all(folders.map(discoverWorkspacePackages))
     const scriptsById = new Map<string, ScriptItem>()
-    this.roots = definitions.map((packages, index) => {
-      const packageItems = packages.map((definition) => {
-        const scriptItems = definition.scripts.map((script) => {
-          const id = createScriptId(definition, script.name)
-          const item = new ScriptItem(
-            id,
-            definition,
-            script.name,
-            script.command,
-            favorites.has(id),
-            this.running.has(id)
-          )
-          scriptsById.set(id, item)
-          return item
+    this.roots = definitions
+      .map((packages, index) => {
+        const packageItems = packages.map((definition) => {
+          const scriptItems = definition.scripts.map((script) => {
+            const id = createScriptId(definition, script.name)
+            const item = new ScriptItem(
+              id,
+              definition,
+              script.name,
+              script.command,
+              favorites.has(id),
+              this.running.has(id)
+            )
+            scriptsById.set(id, item)
+            return item
+          })
+          return new PackageScriptsItem(definition, scriptItems)
         })
-        return new PackageScriptsItem(definition, scriptItems)
+        return new WorkspaceScriptsItem(folders[index], packageItems)
       })
-      return new WorkspaceScriptsItem(folders[index], packageItems)
-    }).filter((root) => root.packages.length > 0)
+      .filter((root) => root.packages.length > 0)
     this.scriptsById = scriptsById
     await vscode.commands.executeCommand(
       "setContext",
@@ -406,13 +421,19 @@ export class NpmScriptsProvider implements vscode.TreeDataProvider<ScriptsTreeNo
 
   public async setFavoritesOnly(value: boolean): Promise<void> {
     await this.context.globalState.update(FAVORITES_ONLY_KEY, value)
-    await vscode.commands.executeCommand("setContext", "assistiveTools.scripts.favoritesOnly", value)
+    await vscode.commands.executeCommand(
+      "setContext",
+      "assistiveTools.scripts.favoritesOnly",
+      value
+    )
     this.changeEmitter.fire(undefined)
   }
 
   public async runRecent(): Promise<void> {
     const recentIds = this.context.globalState.get<string[]>(RECENTS_KEY, [])
-    const items = recentIds.map((id) => this.scriptsById.get(id)).filter((item): item is ScriptItem => !!item)
+    const items = recentIds
+      .map((id) => this.scriptsById.get(id))
+      .filter((item): item is ScriptItem => !!item)
     if (items.length === 0) {
       vscode.window.showInformationMessage("还没有可用的最近运行脚本")
       return
@@ -432,14 +453,20 @@ export class NpmScriptsProvider implements vscode.TreeDataProvider<ScriptsTreeNo
   }
 
   private async recordRecent(id: string): Promise<void> {
-    const recentIds = this.context.globalState.get<string[]>(RECENTS_KEY, []).filter((item) => item !== id)
+    const recentIds = this.context.globalState
+      .get<string[]>(RECENTS_KEY, [])
+      .filter((item) => item !== id)
     recentIds.unshift(id)
     await this.context.globalState.update(RECENTS_KEY, recentIds.slice(0, 20))
   }
 }
 
 function createScriptId(definition: PackageScripts, scriptName: string): string {
-  return [definition.workspaceFolder.uri.toString(), definition.relativeDirectory || ".", scriptName].join("::")
+  return [
+    definition.workspaceFolder.uri.toString(),
+    definition.relativeDirectory || ".",
+    scriptName,
+  ].join("::")
 }
 
 export function registerNpmScripts(context: vscode.ExtensionContext): void {
@@ -458,8 +485,12 @@ export function registerNpmScripts(context: vscode.ExtensionContext): void {
     watcher.onDidChange((uri) => provider.scheduleRefresh(uri)),
     watcher.onDidDelete((uri) => provider.scheduleRefresh(uri)),
     vscode.commands.registerCommand("assistiveTools.scripts.refresh", () => provider.refresh()),
-    vscode.commands.registerCommand("assistiveTools.scripts.run", (item: ScriptItem) => provider.run(item)),
-    vscode.commands.registerCommand("assistiveTools.scripts.stop", (item: ScriptItem) => provider.stop(item)),
+    vscode.commands.registerCommand("assistiveTools.scripts.run", (item: ScriptItem) =>
+      provider.run(item)
+    ),
+    vscode.commands.registerCommand("assistiveTools.scripts.stop", (item: ScriptItem) =>
+      provider.stop(item)
+    ),
     vscode.commands.registerCommand("assistiveTools.scripts.toggleFavorite", (item: ScriptItem) =>
       provider.toggleFavorite(item)
     ),

@@ -1,6 +1,6 @@
 # Assistive Tools
 
-把前端项目里重复、易错、又不得不做的操作收进 VS Code：维护枚举映射、按模板创建文件、运行 Monorepo 脚本，以及同步微信小程序页面调试配置。
+把前端项目里重复、易错、又不得不做的操作收进 VS Code：根据 Git 改动推荐验证、保护生成物、输出发布就绪报告，同时维护枚举映射、模板、Monorepo 脚本和微信小程序页面配置。
 
 [![Visual Studio Marketplace](https://img.shields.io/visual-studio-marketplace/v/ihopefulChina.vscode-assistive-tools?label=VS%20Marketplace&color=0078d4)](https://marketplace.visualstudio.com/items?itemName=ihopefulChina.vscode-assistive-tools)
 [![Open VSX](https://img.shields.io/open-vsx/v/ihopefulChina/vscode-assistive-tools?label=Open%20VSX&color=c160ef)](https://open-vsx.org/extension/ihopefulChina/vscode-assistive-tools)
@@ -37,16 +37,90 @@
 
 要求 VS Code `1.74.0` 或更高版本。
 
-## 0.1.0 能做什么
+## 0.2.0 新增
 
-| 场景 | 能力 | 关键保护 |
-| --- | --- | --- |
-| TypeScript 枚举 | 生成或更新 Map、Options | 识别同名冲突；更新时保留已有标签 |
-| 页面 / 组件创建 | Vue 2、Vue 3、UniApp、Taro 及自定义模板 | 写入前预览；拦截越界路径和符号链接逃逸 |
-| 根项目 / Monorepo | 汇总并运行每个 `package.json` 的脚本 | 根目录脚本固定纳入；按项目包管理器运行 |
-| 微信小程序 / Taro | 同步页面到 `project.private.config.json` | 保留 `query`、`scene`、`launchMode` 和手工名称 |
+- 独立的 Assistive Tools 活动栏入口，不再把主要功能堆在资源管理器底部
+- 项目工作流配置、按改动推荐验证、生成物保护、发布就绪矩阵与报告
+- 多根工作区会按根目录分别展示工作流状态和操作，不会只读取第一个项目
+- Monorepo 根脚本，以及 npm / pnpm 声明的单层或多层 workspace 脚本发现
+- Taro 子包自动识别、kebab-case 目录，以及 `index.tsx + index.module.less` 双文件生成
 
-## 实例 1：持续维护枚举 Map / Options
+## 功能地图
+
+| 场景              | 能力                                            | 关键保护                                       |
+| ----------------- | ----------------------------------------------- | ---------------------------------------------- |
+| 项目工作流        | 项目内 YAML / JSON 配置检查、生成链路和发布规则 | 配置随代码评审，不依赖个人机器设置             |
+| 改动验证          | 根据 Git 改动范围推荐并在终端运行命令           | 生成命令先于测试；结果绑定当前改动签名         |
+| 生成物            | 识别直接编辑和漏运行生成命令                    | 编辑器保存时提醒；发布矩阵阻断未就绪状态       |
+| 发布              | READY / NOT READY 矩阵与 Markdown 报告          | 同时核对工作区、检查结果和发布物               |
+| TypeScript 枚举   | 生成或更新 Map、Options                         | 识别同名冲突；更新时保留已有标签               |
+| 页面 / 组件创建   | Vue 2、Vue 3、UniApp、Taro 及自定义模板         | 写入前预览；拦截越界路径和符号链接逃逸         |
+| 根项目 / Monorepo | 汇总并运行每个 `package.json` 的脚本            | 根目录脚本固定纳入；按项目包管理器运行         |
+| 微信小程序 / Taro | 同步页面到 `project.private.config.json`        | 保留 `query`、`scene`、`launchMode` 和手工名称 |
+
+## 实例 1：从改动范围到发布报告
+
+从命令面板运行“工作流：创建或打开项目配置”，会在项目中创建 `.assistive-tools/workflow.yml`。配置可直接提交到仓库：
+
+```yaml
+version: 1
+
+changes:
+  baseRef: origin/main
+
+checks:
+  - id: test
+    name: 单元测试
+    command: pnpm test
+    paths: [src/**, test/**, package.json, pnpm-lock.yaml]
+    required: true
+
+generated:
+  - id: api-client
+    name: API 客户端
+    sources: [openapi/**]
+    outputs: [src/request/**]
+    command: pnpm generate:api
+    required: true
+
+release:
+  requireCleanWorkingTree: true
+  requiredChecks: [test]
+  artifacts: [dist/*.vsix]
+  reportPath: .assistive-tools/release-readiness.md
+```
+
+完整闭环：
+
+1. 点击活动栏里的 Assistive Tools `{ }` 图标，打开“发布工作流”。
+2. 点击“推荐并运行验证”。插件读取相对 `baseRef` 的已提交、暂存、未暂存和未跟踪文件。
+3. 选择推荐项后，插件先运行命中的生成命令，再运行验证命令；每项都在 VS Code 任务终端中执行。
+4. 点击“发布就绪报告”，生成 READY / NOT READY 矩阵和 Markdown 报告。
+
+如果打开的是多根工作区，“发布工作流”会先按工作区根目录分组；每个根目录使用自己的配置、改动签名和验证结果。
+
+推荐不是只看文件扩展名：每个检查都有自己的 `paths` 和 `exclude`。验证结果会绑定分支、提交、改动文件内容形成的签名；代码继续变化后，旧结果会自动变成未运行，不会被误当成当前结果。
+
+### 生成物保护规则
+
+- `sources` 变化：生成命令会进入推荐列表，未成功运行前矩阵显示 `PENDING`
+- `outputs` 变化但 `sources` 没变化：判定为直接修改生成物，矩阵显示 `BLOCKED`
+- 在编辑器中直接保存命中 `outputs` 的文件：立即提醒，并可运行对应生成命令
+- 生成命令成功后：结果记录到当前改动签名，再由后续测试验证新生成物
+
+### 发布就绪矩阵
+
+报告会同时检查：
+
+- 工作流配置是否合法
+- Git 工作区是否满足干净要求
+- 必需的生成链路是否在当前改动上通过
+- 必需验证是否在当前改动上通过
+- `artifacts` 声明的发布物是否存在
+
+任一必需项为 `PENDING` 或 `BLOCKED`，总状态就是 `NOT READY`。
+
+## 实例 2：持续维护枚举 Map / Options
 
 输入：
 
@@ -91,20 +165,23 @@ export const OOrderStatus = [
 - `output`: `both`、`map` 或 `options`
 - `useSatisfies`: 为 Map 增加 `satisfies Record<Enum, string>` 类型校验
 
-## 实例 2：创建一个 Taro 页面
+## 实例 3：创建一个 Taro 页面
 
-1. 在资源管理器中右键目标目录，选择“创建页面”。
-2. 选择自动推荐的 Taro 模板。
-3. 输入 `OrderDetail`。
+1. 在 Taro 子包的 `src/pages` 目标目录上右键，选择“创建页面”。
+2. 输入 `OrderDetail`。插件会从当前目录向上找到最近的 `package.json`，即使 VS Code 打开的是 Monorepo 根目录，也能自动识别 Taro。
+3. 当前框架只有一个内置模板时直接使用；存在自定义候选时才要求选择。
 4. 在预览中确认将创建的文件，然后点击“创建”。
 
 结果：
 
 ```text
 src/pages/
-└── OrderDetail/
-    └── index.tsx
+└── order-detail/
+    ├── index.tsx
+    └── index.module.less
 ```
+
+目录默认使用常见的 kebab-case；如需 camelCase，可启用 `assistiveTools.templates.useCamelCaseDir`。
 
 插件会根据工作区依赖和项目文件自动推荐 Vue 2、Vue 3、UniApp 或 Taro。普通 Vite 项目不会仅因为存在 `vite.config.ts` 就被误判为 Vue。
 
@@ -139,7 +216,7 @@ tpl:
 - `模板：导出内置模板`：把选定框架的内置模板导出到 `.templates`
 - `模板：校验工作区模板`：检查 YAML、输出内容、重复路径和越界路径
 
-## 实例 3：在一个面板运行根目录和 Monorepo 脚本
+## 实例 4：在一个面板运行根目录和 Monorepo 脚本
 
 项目结构：
 
@@ -152,7 +229,7 @@ shop-workspace/
     └── mini-app/package.json
 ```
 
-打开资源管理器底部的 `Assistive Scripts`：
+点击活动栏里的 Assistive Tools `{ }` 图标，打开“项目脚本”。工作区标题会直接显示发现的 package 数和脚本数：
 
 ```text
 shop-workspace
@@ -177,7 +254,7 @@ shop-workspace
 - 优先读取 `packageManager` 字段，其次根据锁文件识别 npm、pnpm、Yarn 或 Bun
 - 脚本在所属 package 目录中运行，不会错误地统一切到仓库根目录
 
-## 实例 4：同步 Taro / 微信小程序调试页面
+## 实例 5：同步 Taro / 微信小程序调试页面
 
 页面配置：
 
@@ -227,15 +304,19 @@ export default defineAppConfig({
 
 ## 命令一览
 
-| 命令 | 用途 |
-| --- | --- |
-| `转换枚举` | 生成或更新枚举 Map / Options |
-| `创建组件` / `创建页面` | 选择模板并预览生成文件 |
-| `模板：导出内置模板` | 将内置模板复制到工作区 |
-| `模板：校验工作区模板` | 校验 `.templates` 中的模板 |
-| `微信小程序：同步页面调试配置` | 合并页面调试配置 |
+| 命令                           | 用途                               |
+| ------------------------------ | ---------------------------------- |
+| `转换枚举`                     | 生成或更新枚举 Map / Options       |
+| `创建组件` / `创建页面`        | 选择模板并预览生成文件             |
+| `模板：导出内置模板`           | 将内置模板复制到工作区             |
+| `模板：校验工作区模板`         | 校验 `.templates` 中的模板         |
+| `微信小程序：同步页面调试配置` | 合并页面调试配置                   |
+| `工作流：创建或打开项目配置`   | 初始化或打开项目级工作流           |
+| `工作流：推荐并运行验证`       | 按 Git 改动选择并运行生成/验证命令 |
+| `工作流：检查生成物`           | 查看生成物保护规则状态             |
+| `工作流：生成发布就绪报告`     | 生成发布矩阵和 Markdown 报告       |
 
-脚本运行、停止、收藏、筛选和最近运行入口位于 `Assistive Scripts` 视图。
+脚本运行、停止、收藏、筛选和最近运行入口位于 Assistive Tools 活动栏的“项目脚本”视图。
 
 ## 行为边界
 

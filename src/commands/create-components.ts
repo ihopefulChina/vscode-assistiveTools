@@ -26,6 +26,8 @@ type CreateOptions = {
   targetDir: string
   /** 当前操作所属的工作区根目录 */
   workspaceRoot: string
+  /** 是否使用 camelCase 目录；默认使用 kebab-case */
+  useCamelCaseDir: boolean
   /** 自定义模板路径（当 templateType 为 custom 时使用） */
   customTemplatePath?: string
 }
@@ -84,9 +86,14 @@ function getDefaultTemplatePath(
   }
 
   const templateDir = path.join(extensionPath, "resources", "templates", templateType)
-  const templateFile = path.join(templateDir, `${fileType}.template`)
-
-  return templateFile
+  const candidates = [
+    path.join(templateDir, `${fileType}.yml`),
+    path.join(templateDir, `${fileType}.yaml`),
+    path.join(templateDir, `${fileType}.template`),
+  ]
+  return (
+    candidates.find((candidate) => fs.existsSync(candidate)) || candidates[candidates.length - 1]
+  )
 }
 
 /**
@@ -316,6 +323,9 @@ function readTemplate(options: CreateOptions): string | YamlTemplate {
   if (!fs.existsSync(templatePath)) {
     throw new Error(`默认模板不存在: ${templatePath}`)
   }
+  if (templatePath.endsWith(".yml") || templatePath.endsWith(".yaml")) {
+    return readYamlTemplate(templatePath)
+  }
   return fs.readFileSync(templatePath, "utf-8")
 }
 
@@ -327,10 +337,7 @@ export function replaceTemplateVariables(
   name: string,
   type: "component" | "page"
 ): string {
-  const words = splitNameWords(name)
-  const pascalName = words.map(capitalizeWord).join("")
-  const kebabName = words.join("-")
-  const camelName = words.map((word, index) => (index === 0 ? word : capitalizeWord(word))).join("")
+  const { pascalName, kebabName, camelName } = deriveTemplateNames(name)
 
   let result = template
 
@@ -355,6 +362,36 @@ export function replaceTemplateVariables(
     .replace(/\[:=Time:\]/g, new Date().toLocaleTimeString("zh-CN"))
 
   return result
+}
+
+export function deriveTemplateNames(name: string): {
+  pascalName: string
+  camelName: string
+  kebabName: string
+} {
+  const words = splitNameWords(name)
+  return {
+    pascalName: words.map(capitalizeWord).join(""),
+    kebabName: words.join("-"),
+    camelName: words.map((word, index) => (index === 0 ? word : capitalizeWord(word))).join(""),
+  }
+}
+
+export function findNearestPackageRoot(targetPath: string, workspaceRoot: string): string {
+  const resolvedWorkspace = path.resolve(workspaceRoot)
+  let current = path.resolve(targetPath)
+  try {
+    if (fs.statSync(current).isFile()) current = path.dirname(current)
+  } catch {
+    // The selected directory can be created later; start walking from its resolved path.
+  }
+
+  while (current === resolvedWorkspace || isPathInside(resolvedWorkspace, current)) {
+    if (fs.existsSync(path.join(current, "package.json"))) return current
+    if (current === resolvedWorkspace) break
+    current = path.dirname(current)
+  }
+  return resolvedWorkspace
 }
 
 function splitNameWords(name: string): string[] {
@@ -592,7 +629,9 @@ function buildGenerationPlan(
   options: CreateOptions,
   template: string | YamlTemplate
 ): GenerationPlan {
-  const folderPath = path.join(options.targetDir, options.name)
+  const names = deriveTemplateNames(options.name)
+  const folderName = options.useCamelCaseDir ? names.camelName : names.kebabName
+  const folderPath = path.join(options.targetDir, folderName)
   if (fs.existsSync(folderPath) && fs.lstatSync(folderPath).isSymbolicLink()) {
     throw new Error(`目标文件夹不能是符号链接: ${options.name}`)
   }
@@ -642,10 +681,11 @@ function buildGenerationPlan(
  */
 async function showTemplateSelector(
   type: "component" | "page",
+  projectRoot: string,
   workspaceRoot: string
 ): Promise<TemplateSelection | undefined> {
   // 自动检测项目类型
-  const detectedType = detectProjectType(workspaceRoot)
+  const detectedType = detectProjectType(projectRoot)
 
   type TemplateQuickPickItem = vscode.QuickPickItem & { selection: TemplateSelection }
   const items: TemplateQuickPickItem[] = []
@@ -731,6 +771,14 @@ async function showTemplateSelector(
     vscode.window.showWarningMessage(`读取自定义模板失败: ${error.message}`)
   }
 
+  // Monorepo 子包类型明确且没有自定义候选时，直接使用匹配模板。
+  if (detectedType && detectedType !== "custom" && customTemplates.length === 0) {
+    return {
+      templateType: detectedType,
+      label: `${detectedType}（自动检测）`,
+    }
+  }
+
   for (const template of customTemplates) {
     const tagDetail = template.tags.map((tag) => `#${tag}`).join(" ")
     items.push({
@@ -802,16 +850,16 @@ export async function createComponent(uri?: vscode.Uri) {
     return
   }
   const workspaceRoot = getWorkspaceRoot(finalDir)
+  const projectRoot = findNearestPackageRoot(finalDir, workspaceRoot)
 
-  // 选择模板
-  const template = await showTemplateSelector("component", workspaceRoot)
-  if (!template) {
+  // 先输入名称，再按当前 Monorepo package 自动选择模板。
+  const name = await showNameInput("component")
+  if (!name) {
     return
   }
 
-  // 输入名称
-  const name = await showNameInput("component")
-  if (!name) {
+  const template = await showTemplateSelector("component", projectRoot, workspaceRoot)
+  if (!template) {
     return
   }
 
@@ -822,6 +870,9 @@ export async function createComponent(uri?: vscode.Uri) {
     name,
     targetDir: finalDir,
     workspaceRoot,
+    useCamelCaseDir: vscode.workspace
+      .getConfiguration("assistiveTools", vscode.Uri.file(finalDir))
+      .get<boolean>("templates.useCamelCaseDir", false),
     customTemplatePath: template.customTemplatePath,
   })
 }
@@ -835,16 +886,16 @@ export async function createPage(uri?: vscode.Uri) {
     return
   }
   const workspaceRoot = getWorkspaceRoot(finalDir)
+  const projectRoot = findNearestPackageRoot(finalDir, workspaceRoot)
 
-  // 选择模板
-  const template = await showTemplateSelector("page", workspaceRoot)
-  if (!template) {
+  // 先输入名称，再按当前 Monorepo package 自动选择模板。
+  const name = await showNameInput("page")
+  if (!name) {
     return
   }
 
-  // 输入名称
-  const name = await showNameInput("page")
-  if (!name) {
+  const template = await showTemplateSelector("page", projectRoot, workspaceRoot)
+  if (!template) {
     return
   }
 
@@ -855,6 +906,9 @@ export async function createPage(uri?: vscode.Uri) {
     name,
     targetDir: finalDir,
     workspaceRoot,
+    useCamelCaseDir: vscode.workspace
+      .getConfiguration("assistiveTools", vscode.Uri.file(finalDir))
+      .get<boolean>("templates.useCamelCaseDir", false),
     customTemplatePath: template.customTemplatePath,
   })
 }
@@ -884,9 +938,10 @@ export function getWorkspaceRoot(targetDir: string): string {
 
 async function pickWorkspaceRoot(uri?: vscode.Uri): Promise<string | undefined> {
   if (uri?.fsPath) {
-    const target = fs.existsSync(uri.fsPath) && fs.statSync(uri.fsPath).isDirectory()
-      ? uri.fsPath
-      : path.dirname(uri.fsPath)
+    const target =
+      fs.existsSync(uri.fsPath) && fs.statSync(uri.fsPath).isDirectory()
+        ? uri.fsPath
+        : path.dirname(uri.fsPath)
     return getWorkspaceRoot(target)
   }
   const folders = vscode.workspace.workspaceFolders || []
@@ -897,8 +952,8 @@ async function pickWorkspaceRoot(uri?: vscode.Uri): Promise<string | undefined> 
   if (folders.length === 1) {
     return folders[0].uri.fsPath
   }
-  return (await vscode.window.showWorkspaceFolderPick({ placeHolder: "选择模板所属工作区" }))
-    ?.uri.fsPath
+  return (await vscode.window.showWorkspaceFolderPick({ placeHolder: "选择模板所属工作区" }))?.uri
+    .fsPath
 }
 
 async function exportBuiltInTemplates(uri?: vscode.Uri): Promise<void> {
@@ -925,12 +980,14 @@ async function exportBuiltInTemplates(uri?: vscode.Uri): Promise<void> {
     const source = getDefaultTemplatePath(selected.type, type)
     const extension = getFileExtension(selected.type)
     const target = path.join(templatesDir, `${selected.type}-${type}.yml`)
+    const sourceTemplate =
+      source.endsWith(".yml") || source.endsWith(".yaml") ? readYamlTemplate(source) : undefined
     const data: YamlTemplate = {
       name: `${selected.label} ${type === "component" ? "组件" : "页面"}`,
       description: `从 Assistive Tools 内置 ${selected.label} 模板导出`,
       tags: [selected.type, type],
       type,
-      tpl: {
+      tpl: sourceTemplate?.tpl || {
         [`index${extension}`]: fs.readFileSync(source, "utf-8"),
       },
     }
@@ -1009,7 +1066,10 @@ export default function registerCreateComponents(context: vscode.ExtensionContex
   )
 
   context.subscriptions.push(
-    vscode.commands.registerCommand("assistiveTools.templates.exportBuiltIn", exportBuiltInTemplates),
+    vscode.commands.registerCommand(
+      "assistiveTools.templates.exportBuiltIn",
+      exportBuiltInTemplates
+    ),
     vscode.commands.registerCommand("assistiveTools.templates.validate", validateTemplatesCommand)
   )
 }
