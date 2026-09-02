@@ -1,152 +1,49 @@
 # 测试指南
 
-## 前置准备
-
-### 1. 安装依赖
+## 自动化检查
 
 ```bash
-npm install
+npm ci
+npm test
+npm audit --omit=dev
 ```
 
-### 2. 编译项目
+`npm test` 会先编译扩展，再执行以下回归场景：
+
+- 枚举名称转换
+- 注释中的伪枚举不会显示操作
+- 生成代码紧跟枚举，不会插入下一条语句
+- 字符串成员和带单引号注释可以安全生成
+- 普通枚举名和相似类型名不会被误判为重复代码
+- 命令面板无有效枚举时不会抛异常
+- PascalCase、camelCase、kebab-case 转换
+- React Vite 项目不会被识别为 Vue
+- 多根工作区使用当前目录所属项目
+- 自定义模板不能越界或通过符号链接写文件
+- YAML 模板支持创建嵌套目录
+
+## 扩展开发主机验证
+
+1. 在 VSCode 中打开仓库。
+2. 按 `F5` 启动“运行扩展”。
+3. 按 [快速开始](./QUICK_START.md) 验证枚举转换和组件创建。
+4. 额外检查 Vue 2、Vue 3、UniApp、Taro 四种内置模板。
+5. 使用 README 中的 YAML 示例验证多文件和嵌套目录输出。
+
+## 发布包验证
 
 ```bash
-npm run compile
+npx @vscode/vsce package --no-yarn
+unzip -l vscode-assistive-tools-*.vsix
 ```
 
-或者使用监听模式（推荐，会自动重新编译）：
+确认 VSIX 至少包含：
 
-```bash
-npm run watch
-```
+- `extension/out/extension.js`
+- `extension/out/commands/enum-hover.js`
+- `extension/out/commands/create-components.js`
+- `extension/resources/templates/`
+- `extension/node_modules/js-yaml/`
+- `extension/node_modules/typescript/`
 
-## 测试步骤
-
-### 方法一：使用 VSCode 调试功能（推荐）
-
-1. **打开项目**
-
-   - 在 VSCode 中打开 `vscode-assistiveTools` 项目
-
-2. **启动调试**
-
-   - 按 `F5` 键，或者
-   - 点击左侧调试面板（🐛 图标）
-   - 选择"运行扩展"配置
-   - 点击绿色播放按钮
-
-3. **新窗口打开**
-
-   - 会弹出一个新的 VSCode 窗口（标题栏显示 `[扩展开发主机]`）
-   - 这是插件的测试环境
-
-4. **打开测试文件**
-   - 在新窗口中打开 `test/test-enum.ts` 文件
-   - 或者创建一个新的 `.ts` 文件，输入以下内容：
-
-```typescript
-enum EStatus {
-  /** 待处理 */
-  Pending = "pending",
-  /** 已完成 */
-  Completed = "completed",
-  /** 已取消 */
-  Cancelled = "cancelled",
-}
-```
-
-5. **测试悬停功能**
-
-   - 将鼠标悬停在 `enum EStatus` 这一行上
-   - 应该会显示一个悬停提示，包含"生成枚举转换"的链接
-
-6. **测试转换功能**
-   - 点击"生成枚举转换"链接
-   - 应该会在枚举定义下方自动生成：
-
-```typescript
-export const MStatus = {
-  [EStatus.Pending]: "待处理",
-  [EStatus.Completed]: "已完成",
-  [EStatus.Cancelled]: "已取消",
-};
-
-export const OStatus = [
-  { value: EStatus.Pending, label: "待处理" },
-  { value: EStatus.Completed, label: "已完成" },
-  { value: EStatus.Cancelled, label: "已取消" },
-];
-```
-
-7. **测试重复生成**
-   - 再次将鼠标悬停在 `enum EStatus` 上
-   - 点击"生成枚举转换"
-   - 应该会显示提示："转换代码已存在。如需重新生成，请删除原有代码"
-
-### 方法二：打包安装测试
-
-1. **安装 vsce（VSCode Extension Manager）**
-
-```bash
-npm install -g @vscode/vsce
-```
-
-2. **打包插件**
-
-```bash
-vsce package
-```
-
-3. **安装插件**
-
-```bash
-code --install-extension vscode-assistive-tools-0.0.1.vsix
-```
-
-4. **重启 VSCode 并测试**
-
-## 测试场景
-
-### 场景 1：基本枚举转换
-
-- ✅ 悬停显示链接
-- ✅ 点击生成代码
-- ✅ 生成的代码格式正确
-
-### 场景 2：枚举名称转换规则
-
-- 测试以 `E` 开头的枚举（如 `EStatus` → `MStatus`, `OStatus`）
-- 测试不以 `E` 开头的枚举（如 `Status` → `MStatus`, `OStatus`）
-
-### 场景 3：重复生成保护
-
-- ✅ 已生成代码后，再次点击应提示已存在
-
-### 场景 4：不同文件类型
-
-- ✅ TypeScript (`.ts`)
-- ✅ TypeScript React (`.tsx`)
-- ✅ JavaScript (`.js`)
-- ✅ JavaScript React (`.jsx`)
-
-### 场景 5：枚举注释
-
-- ✅ 有 JSDoc 注释的枚举项
-- ✅ 无注释的枚举项（应使用空字符串）
-
-## 调试技巧
-
-1. **查看控制台输出**
-
-   - 在调试窗口中，打开"调试控制台"
-   - 可以看到 `console.log` 的输出
-
-2. **断点调试**
-
-   - 在 `src/hover.ts` 或 `src/extension.ts` 中设置断点
-   - 重新启动调试（F5）
-   - 执行操作时会停在断点处
-
-3. **重新加载扩展**
-   - 修改代码后，在调试窗口中按 `Ctrl+R` (Windows/Linux) 或 `Cmd+R` (Mac)
-   - 或者停止调试后重新启动
+编译、自动化测试和打包通过不等于真实 Extension Host 或各框架项目的 UAT 通过。

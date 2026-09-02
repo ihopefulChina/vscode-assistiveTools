@@ -1,8 +1,8 @@
 {
   "name": "vscode-assistive-tools",
   "displayName": "Assistive Tools",
-  "description": "VSCode辅助工具插件，提供枚举悬停转换等功能。支持TypeScript/JavaScript枚举值到Map对象和Option数组的自动转换。",
-  "version": "0.0.5",
+  "description": "VSCode 辅助开发工具：安全生成枚举 Map/Options，快速创建 Vue、UniApp、Taro 组件和页面。",
+  "version": "0.0.6",
   "publisher": "ihopefulChina",
   "repository": {
     "type": "git",
@@ -38,7 +38,7 @@
     "onLanguage:typescriptreact",
     "onLanguage:javascript",
     "onLanguage:javascriptreact",
-    "onCommand:assistiveTools.generateYapiInterface",
+    "onCommand:assistiveTools.convertEnum",
     "onCommand:assistiveTools.createComponent",
     "onCommand:assistiveTools.createPage"
   ],
@@ -76,16 +76,16 @@
   "scripts": {
     "vscode:prepublish": "npm run compile",
     "compile": "tsc -p ./",
-    "watch": "tsc -watch -p ./"
+    "watch": "tsc -watch -p ./",
+    "test": "npm run compile && node --test test/*.test.js"
   },
   "devDependencies": {
     "@types/js-yaml": "^4.0.9",
     "@types/node": "^18.0.0",
-    "@types/vscode": "^1.74.0",
-    "typescript": "^4.9.4"
+    "@types/vscode": "^1.74.0"
   },
   "dependencies": {
-    "js-yaml": "^4.1.1",
-    "typescript": "^4.9.4"
+    "js-yaml": "^4.3.1",
+    "typescript": "^4.9.5"
   }
 }
