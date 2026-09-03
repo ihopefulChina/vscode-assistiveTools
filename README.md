@@ -1,11 +1,30 @@
-# Assistive Tools
+<div align="center">
+  <img src="./static/logo.png" width="104" alt="Assistive Tools logo" />
 
-把前端项目里重复、易错、又不得不做的操作收进 VS Code：根据 Git 改动推荐验证、保护生成物、输出发布就绪报告，同时维护枚举映射、模板、Monorepo 脚本和微信小程序页面配置。
+  <h1>Assistive Tools</h1>
 
-[![Visual Studio Marketplace](https://img.shields.io/visual-studio-marketplace/v/ihopefulChina.vscode-assistive-tools?label=VS%20Marketplace&color=0078d4)](https://marketplace.visualstudio.com/items?itemName=ihopefulChina.vscode-assistive-tools)
-[![Open VSX](https://img.shields.io/open-vsx/v/ihopefulChina/vscode-assistive-tools?label=Open%20VSX&color=c160ef)](https://open-vsx.org/extension/ihopefulChina/vscode-assistive-tools)
-[![VS Code](https://img.shields.io/badge/VS%20Code-%5E1.74.0-23a8f2)](https://code.visualstudio.com/)
-[![License](https://img.shields.io/badge/license-MIT-green)](./LICENSE.txt)
+  <p>面向希望减少前端工程机械操作的 VS Code 用户：把改动验证、生成物保护、模板、枚举、Monorepo 脚本与小程序调试配置集中到编辑器中。</p>
+
+  <p>
+    <a href="https://github.com/ihopefulChina/vscode-assistiveTools/releases"><img src="https://img.shields.io/github/v/release/ihopefulChina/vscode-assistiveTools?display_name=tag&sort=semver" alt="Latest GitHub release" /></a>
+    <a href="https://open-vsx.org/extension/ihopefulChina/vscode-assistive-tools"><img src="https://img.shields.io/open-vsx/v/ihopefulChina/vscode-assistive-tools?label=Open%20VSX&color=c160ef" alt="Open VSX version" /></a>
+    <a href="https://code.visualstudio.com/"><img src="https://img.shields.io/badge/VS%20Code-%5E1.74.0-23a8f2" alt="VS Code ^1.74.0" /></a>
+    <a href="./package.json"><img src="https://img.shields.io/badge/TypeScript-4.9-3178C6?logo=typescript&logoColor=white" alt="TypeScript 4.9" /></a>
+    <a href="./LICENSE.txt"><img src="https://img.shields.io/badge/license-MIT-22c55e" alt="MIT license" /></a>
+  </p>
+
+  <p>
+    <a href="#先看实际效果">实际效果</a> ·
+    <a href="#安装">安装</a> ·
+    <a href="#核心能力">核心能力</a> ·
+    <a href="#操作实例">操作实例</a> ·
+    <a href="#兼容范围">兼容范围</a> ·
+    <a href="#安全与行为边界">安全边界</a> ·
+    <a href="#常见问题">常见问题</a>
+  </p>
+</div>
+
+---
 
 ## 先看实际效果
 
@@ -31,21 +50,16 @@
 
 ## 安装
 
+要求 VS Code `1.74.0` 或更高版本。可从以下扩展目录查看当前可用版本：
+
 - [Visual Studio Marketplace](https://marketplace.visualstudio.com/items?itemName=ihopefulChina.vscode-assistive-tools)
 - [Open VSX Registry](https://open-vsx.org/extension/ihopefulChina/vscode-assistive-tools)
-- 本地 VSIX：在命令面板运行 `Extensions: Install from VSIX...`，选择下载的 `.vsix`
 
-要求 VS Code `1.74.0` 或更高版本。
+也可以从 [GitHub Releases](https://github.com/ihopefulChina/vscode-assistiveTools/releases) 下载 VSIX，然后在命令面板运行 `Extensions: Install from VSIX...`。扩展目录与 Releases 的审核、同步节奏可能不同，安装前以目标页面实际展示的版本为准。
 
-## 0.2.0 新增
+安装后，点击活动栏中的 Assistive Tools `{ }` 图标可打开“项目脚本”和“发布工作流”；枚举、模板和页面同步命令也可以直接从命令面板执行。
 
-- 独立的 Assistive Tools 活动栏入口，不再把主要功能堆在资源管理器底部
-- 项目工作流配置、按改动推荐验证、生成物保护、发布就绪矩阵与报告
-- 多根工作区会按根目录分别展示工作流状态和操作，不会只读取第一个项目
-- Monorepo 根脚本，以及 npm / pnpm 声明的单层或多层 workspace 脚本发现
-- Taro 子包自动识别、kebab-case 目录，以及 `index.tsx + index.module.less` 双文件生成
-
-## 功能地图
+## 核心能力
 
 | 场景              | 能力                                            | 关键保护                                       |
 | ----------------- | ----------------------------------------------- | ---------------------------------------------- |
@@ -58,7 +72,11 @@
 | 根项目 / Monorepo | 汇总并运行每个 `package.json` 的脚本            | 根目录脚本固定纳入；按项目包管理器运行         |
 | 微信小程序 / Taro | 同步页面到 `project.private.config.json`        | 保留 `query`、`scene`、`launchMode` 和手工名称 |
 
-## 实例 1：从改动范围到发布报告
+多根工作区会按根目录分别展示工作流状态与脚本；模板创建会从目标目录向上识别最近的项目，而不是默认使用第一个工作区根目录。版本变化与升级说明见 [CHANGELOG.md](./CHANGELOG.md)。
+
+## 操作实例
+
+### 1. 从改动范围到发布报告
 
 从命令面板运行“工作流：创建或打开项目配置”，会在项目中创建 `.assistive-tools/workflow.yml`。配置可直接提交到仓库：
 
@@ -120,7 +138,7 @@ release:
 
 任一必需项为 `PENDING` 或 `BLOCKED`，总状态就是 `NOT READY`。
 
-## 实例 2：持续维护枚举 Map / Options
+### 2. 持续维护枚举 Map / Options
 
 输入：
 
@@ -165,7 +183,7 @@ export const OOrderStatus = [
 - `output`: `both`、`map` 或 `options`
 - `useSatisfies`: 为 Map 增加 `satisfies Record<Enum, string>` 类型校验
 
-## 实例 3：创建一个 Taro 页面
+### 3. 创建一个 Taro 页面
 
 1. 在 Taro 子包的 `src/pages` 目标目录上右键，选择“创建页面”。
 2. 输入 `OrderDetail`。插件会从当前目录向上找到最近的 `package.json`，即使 VS Code 打开的是 Monorepo 根目录，也能自动识别 Taro。
@@ -185,7 +203,7 @@ src/pages/
 
 插件会根据工作区依赖和项目文件自动推荐 Vue 2、Vue 3、UniApp 或 Taro。普通 Vite 项目不会仅因为存在 `vite.config.ts` 就被误判为 Vue。
 
-### 自定义多文件模板
+#### 自定义多文件模板
 
 在工作区创建 `.templates/order-detail-page.yml`：
 
@@ -216,7 +234,7 @@ tpl:
 - `模板：导出内置模板`：把选定框架的内置模板导出到 `.templates`
 - `模板：校验工作区模板`：检查 YAML、输出内容、重复路径和越界路径
 
-## 实例 4：在一个面板运行根目录和 Monorepo 脚本
+### 4. 在一个面板运行根目录和 Monorepo 脚本
 
 项目结构：
 
@@ -254,7 +272,7 @@ shop-workspace
 - 优先读取 `packageManager` 字段，其次根据锁文件识别 npm、pnpm、Yarn 或 Bun
 - 脚本在所属 package 目录中运行，不会错误地统一切到仓库根目录
 
-## 实例 5：同步 Taro / 微信小程序调试页面
+### 5. 同步 Taro / 微信小程序调试页面
 
 页面配置：
 
@@ -318,13 +336,37 @@ export default defineAppConfig({
 
 脚本运行、停止、收藏、筛选和最近运行入口位于 Assistive Tools 活动栏的“项目脚本”视图。
 
-## 行为边界
+## 兼容范围
+
+| 范围 | 当前支持 | 需要注意 |
+| --- | --- | --- |
+| 编辑器 | VS Code `^1.74.0` | 更低版本不在扩展引擎范围内 |
+| 枚举转换 | 可静态解析的 TypeScript 普通枚举 | `.d.ts`、`declare enum` 与动态结构不会改写 |
+| 页面 / 组件模板 | Vue 2、Vue 3、UniApp、Taro 与工作区 YAML 模板 | 自动推荐依赖最近项目的包信息和文件特征 |
+| 项目脚本 | 根 `package.json`、npm / pnpm workspaces | 可识别 npm、pnpm、Yarn、Bun 并在所属 package 目录运行 |
+| 发布工作流 | Git 改动、YAML / JSON 规则、项目终端命令与本地产物 | 生成的是就绪判断和报告，不会替你执行发布 |
+| 小程序页面同步 | `app.config.ts` / `pages.config.ts` 中的字面量页面配置 | 动态拼接的页面配置无法可靠解析 |
+
+## 安全与行为边界
 
 - 枚举转换只处理可静态解析的普通枚举；声明文件和 `declare enum` 不会改写
 - 模板在确认前不写磁盘；覆盖项会在预览中明确标出
 - 模板输出只能位于新页面或组件目录内，不能通过绝对路径、`../` 或符号链接越界
 - 页面同步只解析字面量 `pages` / `subPackages.pages`；动态拼接无法可靠解析时会停止并提示
 - 页面同步只新增缺失项和更新插件生成的名称，不删除微信开发者工具中已有的其他调试项
+- 项目脚本和工作流命令来自当前工作区，并会在 VS Code 任务终端中执行；运行陌生仓库前应先审查 `package.json` 与 `.assistive-tools/workflow.*`
+- 发布就绪报告只反映当前配置、Git 快照、验证记录和本地产物，不代表 CI、商店审核或线上验收已经通过
+
+## 常见问题
+
+| 现象 | 检查方式 |
+| --- | --- |
+| 安装后看不到活动栏入口 | 确认 VS Code 版本满足要求，运行 `Developer: Reload Window`，并打开一个项目文件夹 |
+| 枚举上没有“生成或更新”入口 | 将光标放在枚举名称上；确认它不是 `.d.ts` 或 `declare enum`，且语法可被 TypeScript 静态解析 |
+| 没有识别到页面 / 组件模板 | 在目标目录执行命令，并检查最近的 `package.json` 是否声明了对应框架；也可导出或校验工作区 `.templates` |
+| 项目脚本缺失或使用了错误的包管理器 | 检查 `workspaces` / `pnpm-workspace.yaml` 的包含与排除规则；建议在 `package.json#packageManager` 明确声明工具 |
+| 小程序页面同步失败 | 只在工作区内的 `app.config.ts` / `pages.config.ts` 上执行；确认页面数组为字面量，并检查最近的 `project.config.json` 或 package 根目录 |
+| 报告持续显示 `PENDING` / `BLOCKED` | 查看“发布工作流”与 `Assistive Workflow` 输出；重新运行当前改动命中的生成和验证项，并处理直接修改生成物、脏工作区或缺失产物 |
 
 ## 本地开发
 
